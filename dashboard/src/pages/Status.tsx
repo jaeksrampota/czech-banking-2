@@ -1,19 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { useMemo } from 'react';
+import { CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { api } from '../api';
-import type { CollectorRun } from '../types';
+import PageHeader from '../components/PageHeader';
+import ErrorBanner from '../components/ErrorBanner';
+import { useFetch } from '../hooks/useFetch';
 import { cn, SOURCE_LABELS, formatDateTime } from '../utils';
 
 export default function Status() {
-  const [runs, setRuns] = useState<CollectorRun[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = () => {
-    setLoading(true);
-    api.getStatus().then(setRuns).finally(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); }, []);
+  const { data, loading, error, lastUpdated, refresh } = useFetch(
+    () => api.getStatus(),
+  );
+  const runs = data ?? [];
 
   // Per-collector summary
   const collectorStats = useMemo(() => {
@@ -31,18 +28,28 @@ export default function Status() {
     return [...map.entries()].map(([name, stats]) => ({ name, ...stats }));
   }, [runs]);
 
+  const header = (
+    <PageHeader
+      title="Status"
+      subtitle="Collector health and run history"
+      loading={loading}
+      lastUpdated={lastUpdated}
+      onRefresh={refresh}
+    />
+  );
+
+  if (error) {
+    return (
+      <div className="max-w-[1400px] mx-auto space-y-6">
+        {header}
+        <ErrorBanner message={error} onRetry={refresh} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[1400px] mx-auto space-y-6">
-      {/* Collector health cards */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Collector Health</h2>
-        <button
-          onClick={load}
-          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors"
-        >
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
-        </button>
-      </div>
+      {header}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {collectorStats.length > 0 ? (

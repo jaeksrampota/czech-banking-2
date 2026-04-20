@@ -2,7 +2,7 @@ import contextlib
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -33,7 +33,7 @@ THIN_BORDER = Border(
 def export_to_xlsx(db: Database, output_path: str | None = None) -> str:
     if output_path is None:
         os.makedirs("data/export", exist_ok=True)
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         output_path = f"data/export/ci_monitor_{timestamp}.xlsx"
 
     wb = Workbook()

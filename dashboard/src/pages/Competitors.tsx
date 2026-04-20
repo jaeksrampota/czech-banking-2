@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip,
   ResponsiveContainer, Cell, LabelList, CartesianGrid,
@@ -6,6 +6,9 @@ import {
 import { ArrowLeft, Info } from 'lucide-react';
 import { api } from '../api';
 import type { Competitor } from '../types';
+import PageHeader from '../components/PageHeader';
+import ErrorBanner from '../components/ErrorBanner';
+import { useFetch } from '../hooks/useFetch';
 import { cn } from '../utils';
 
 const TIER_COLORS: Record<number, string> = {
@@ -41,16 +44,14 @@ const COMP_COLORS = [
 ];
 
 export default function Competitors() {
-  const [competitors, setCompetitors] = useState<Competitor[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error, lastUpdated, refresh } = useFetch(
+    () => api.getCompetitors(),
+  );
+  const competitors = data ?? [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [xAxis, setXAxis] = useState<MetricKey>('signal_count');
   const [yAxis, setYAxis] = useState<MetricKey>('avg_severity');
   const [selectedTiers, setSelectedTiers] = useState<number[]>([1, 2, 3]);
-
-  useEffect(() => {
-    api.getCompetitors().then(setCompetitors).finally(() => setLoading(false));
-  }, []);
 
   const enriched = useMemo(
     () =>
@@ -78,16 +79,38 @@ export default function Competitors() {
   const toggleTier = (t: number) =>
     setSelectedTiers((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
-  if (loading) {
+  const header = (
+    <PageHeader
+      title="Competitors"
+      subtitle="Tier-level positioning and per-competitor drill-down"
+      loading={loading}
+      lastUpdated={lastUpdated}
+      onRefresh={refresh}
+    />
+  );
+
+  if (error) {
     return (
-      <div className="max-w-[1400px] mx-auto animate-pulse">
+      <div className="max-w-[1400px] mx-auto space-y-4">
+        {header}
+        <ErrorBanner message={error} onRetry={refresh} />
+      </div>
+    );
+  }
+
+  if (loading && !data) {
+    return (
+      <div className="max-w-[1400px] mx-auto space-y-4 animate-pulse">
+        {header}
         <div className="bg-white border border-slate-200 rounded-lg h-[600px] shadow-sm" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto grid grid-cols-12 gap-6">
+    <div className="max-w-[1400px] mx-auto space-y-4">
+      {header}
+      <div className="grid grid-cols-12 gap-6">
       {/* Sidebar controls */}
       <div className="col-span-12 lg:col-span-3 space-y-6">
         {/* Tier slicer */}
@@ -297,6 +320,7 @@ export default function Competitors() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

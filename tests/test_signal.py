@@ -33,4 +33,3 @@ def test_signal_to_dict_serializes_tags_and_metadata():
     d = sig.to_dict()
     assert json.loads(d["tags"]) == ["a", "b"]
     assert json.loads(d["metadata"]) == {"k": 1}
-    assert d["is_new"] == 1

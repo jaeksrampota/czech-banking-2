@@ -1,13 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Search, ExternalLink, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { api } from '../api';
 import type { Signal } from '../types';
 import SeverityBadge from '../components/SeverityBadge';
+import PageHeader from '../components/PageHeader';
+import ErrorBanner from '../components/ErrorBanner';
+import { useFetch } from '../hooks/useFetch';
 import { cn, SOURCE_LABELS, formatDateTime } from '../utils';
 
 export default function Signals() {
-  const [signals, setSignals] = useState<Signal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error, lastUpdated, refresh } = useFetch(
+    () => api.getSignals({ limit: '500' }),
+  );
+  const signals = data ?? [];
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Filters
@@ -17,10 +22,6 @@ export default function Signals() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<'detected_at' | 'severity' | 'competitor_id'>('detected_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-
-  useEffect(() => {
-    api.getSignals({ limit: '500' }).then(setSignals).finally(() => setLoading(false));
-  }, []);
 
   const sources = useMemo(() => [...new Set(signals.map((s) => s.source))].sort(), [signals]);
   const competitors = useMemo(() => [...new Set(signals.map((s) => s.competitor_id))].sort(), [signals]);
@@ -65,9 +66,29 @@ export default function Signals() {
 
   const hasFilters = filterSource || filterCompetitor || filterSeverity || searchQuery;
 
-  if (loading) {
+  const header = (
+    <PageHeader
+      title="Signals"
+      subtitle={data ? `${filtered.length} of ${signals.length} signals shown` : 'Filter and drill into intelligence signals'}
+      loading={loading}
+      lastUpdated={lastUpdated}
+      onRefresh={refresh}
+    />
+  );
+
+  if (error) {
     return (
-      <div className="max-w-[1400px] mx-auto animate-pulse">
+      <div className="max-w-[1400px] mx-auto space-y-4">
+        {header}
+        <ErrorBanner message={error} onRetry={refresh} />
+      </div>
+    );
+  }
+
+  if (loading && !data) {
+    return (
+      <div className="max-w-[1400px] mx-auto space-y-4 animate-pulse">
+        {header}
         <div className="bg-white border border-slate-200 rounded-lg h-[600px] shadow-sm" />
       </div>
     );
@@ -75,6 +96,7 @@ export default function Signals() {
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-4">
+      {header}
       {/* Filters */}
       <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm flex flex-wrap items-center gap-4">
         <div className="relative flex-1 min-w-[200px]">

@@ -36,10 +36,15 @@ export default function Layout({ currentPage, onNavigate, children }: LayoutProp
 
   return (
     <div className="min-h-screen bg-[#f4f4f5] text-slate-600 font-sans selection:bg-yellow-400/30">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm sticky top-0 z-50">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-[#fee600] rounded flex items-center justify-center text-black font-black text-xl shadow-sm">
+          <div
+            role="img"
+            aria-label="Raiffeisenbank logo"
+            className="w-10 h-10 bg-[#fee600] rounded flex items-center justify-center text-black font-black text-xl shadow-sm"
+          >
             RB
           </div>
           <div>
@@ -65,6 +70,7 @@ export default function Layout({ currentPage, onNavigate, children }: LayoutProp
       <div className="flex relative">
         {/* Sidebar */}
         <aside
+          aria-label="Primary navigation"
           className={cn(
             'bg-white border-r border-slate-200 h-[calc(100vh-73px)] sticky top-[73px] overflow-y-auto transition-all duration-300 z-40 flex flex-col',
             collapsed ? 'w-16' : 'w-56'
@@ -74,7 +80,10 @@ export default function Layout({ currentPage, onNavigate, children }: LayoutProp
             {NAV_ITEMS.map(({ page, label, icon: Icon }) => (
               <button
                 key={page}
+                type="button"
                 onClick={() => onNavigate(page)}
+                aria-current={currentPage === page ? 'page' : undefined}
+                aria-label={label}
                 className={cn(
                   'w-full flex items-center gap-3 px-5 py-3.5 text-[10px] font-black uppercase tracking-widest transition-all',
                   currentPage === page
@@ -83,21 +92,24 @@ export default function Layout({ currentPage, onNavigate, children }: LayoutProp
                 )}
                 title={label}
               >
-                <Icon size={16} className={currentPage === page ? 'text-[#e6cf00]' : ''} />
+                <Icon size={16} className={currentPage === page ? 'text-[#e6cf00]' : ''} aria-hidden="true" />
                 {!collapsed && <span>{label}</span>}
               </button>
             ))}
           </nav>
           <button
+            type="button"
             onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
             className="p-4 text-slate-300 hover:text-slate-600 transition-colors border-t border-slate-100"
           >
-            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            {collapsed ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronLeft size={14} aria-hidden="true" />}
           </button>
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 p-6 min-w-0">{children}</main>
+        <main id="main-content" className="flex-1 p-6 min-w-0">{children}</main>
       </div>
 
       {/* Footer */}

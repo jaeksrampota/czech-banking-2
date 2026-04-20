@@ -3,24 +3,12 @@ database:
 
 collectors:
   ares:
-    rate_limit_delay: 3.0
-    max_retries: 3
-    timeout: 30
     schedule: "weekly"
   job_postings:
-    rate_limit_delay: 2.0
-    max_retries: 3
-    timeout: 30
     schedule: "daily"
   news:
-    rate_limit_delay: 1.0
-    max_retries: 3
-    timeout: 30
     schedule: "hourly"
 
 logging:
   level: "INFO"
   file: "data/ci_monitor.log"
-
-export:
-  default_path: "data/export"

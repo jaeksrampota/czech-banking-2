@@ -22,7 +22,6 @@ class Signal:
     severity: int = 1
     tags: list[str] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)
-    is_new: bool = True
     change_summary: str | None = None
     id: str = ""
     content_hash: str = ""
@@ -50,7 +49,6 @@ class Signal:
             "severity": self.severity,
             "tags": json.dumps(self.tags, ensure_ascii=False),
             "metadata": json.dumps(self.metadata, ensure_ascii=False),
-            "is_new": 1 if self.is_new else 0,
             "change_summary": self.change_summary,
             "content_hash": self.content_hash,
         }

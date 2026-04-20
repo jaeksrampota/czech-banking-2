@@ -11,7 +11,6 @@ export interface Signal {
   severity: number;
   tags: string[];
   metadata: Record<string, unknown>;
-  is_new: number;
   change_summary: string | null;
   content_hash: string;
 }

@@ -106,11 +106,3 @@ def _format_signal(signal: Signal) -> str:
 
 def _escape(s: str) -> str:
     return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-
-def maybe_alert_signals(signals: Iterable[Signal]) -> int:
-    """Convenience wrapper — constructs a default alerter and dispatches."""
-    alerter = TelegramAlerter()
-    if not alerter.enabled:
-        return 0
-    return alerter.send_signals(signals)

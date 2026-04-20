@@ -79,8 +79,8 @@ class Database:
             """INSERT OR IGNORE INTO signals
                (id, competitor_id, source, signal_type, title, content, url,
                 detected_at, published_at, severity, tags, metadata,
-                is_new, change_summary, content_hash)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                change_summary, content_hash)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (signal_dict["id"], signal_dict["competitor_id"],
              signal_dict["source"], signal_dict["signal_type"],
              signal_dict["title"], signal_dict["content"],
@@ -88,7 +88,6 @@ class Database:
              signal_dict.get("published_at"),
              signal_dict["severity"],
              signal_dict["tags"], signal_dict["metadata"],
-             signal_dict.get("is_new", 1),
              signal_dict.get("change_summary"),
              signal_dict["content_hash"]),
         )

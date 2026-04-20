@@ -1,31 +1,64 @@
-import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, AreaChart, Area,
 } from 'recharts';
 import { Radio, Building2, Activity, TrendingUp, ExternalLink } from 'lucide-react';
 import { api } from '../api';
-import type { Summary } from '../types';
 import SeverityBadge from '../components/SeverityBadge';
-import { cn, SEVERITY_COLORS, SOURCE_LABELS, formatDateTime, timeAgo } from '../utils';
+import PageHeader from '../components/PageHeader';
+import ErrorBanner from '../components/ErrorBanner';
+import { useFetch } from '../hooks/useFetch';
+import { SOURCE_LABELS, timeAgo } from '../utils';
 
 const PIE_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#b91c1c'];
+const AUTO_REFRESH_MS = 60_000;
 
 export default function Overview() {
-  const [data, setData] = useState<Summary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error, lastUpdated, refresh } = useFetch(
+    () => api.getSummary(),
+    { refreshInterval: AUTO_REFRESH_MS },
+  );
 
-  useEffect(() => {
-    api.getSummary().then(setData).finally(() => setLoading(false));
-  }, []);
+  const header = (
+    <PageHeader
+      title="Overview"
+      subtitle="Signal volume and recent intelligence"
+      loading={loading}
+      lastUpdated={lastUpdated}
+      onRefresh={refresh}
+    />
+  );
 
-  if (loading) return <LoadingSkeleton />;
-  if (!data) return <div className="text-slate-400">No data available. Run collectors first.</div>;
+  if (error) {
+    return (
+      <div className="space-y-6 max-w-[1400px] mx-auto">
+        {header}
+        <ErrorBanner message={error} onRetry={refresh} />
+      </div>
+    );
+  }
+  if (loading && !data) {
+    return (
+      <div className="space-y-6 max-w-[1400px] mx-auto">
+        {header}
+        <LoadingSkeleton />
+      </div>
+    );
+  }
+  if (!data) {
+    return (
+      <div className="space-y-6 max-w-[1400px] mx-auto">
+        {header}
+        <EmptyState text="No data available. Run collectors first." />
+      </div>
+    );
+  }
 
   const stats = data.total_signals;
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
+      {header}
       {/* KPI Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard

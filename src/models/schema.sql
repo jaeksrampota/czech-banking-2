@@ -20,7 +20,6 @@ CREATE TABLE IF NOT EXISTS signals (
     severity INTEGER DEFAULT 1,
     tags TEXT,
     metadata TEXT,
-    is_new INTEGER DEFAULT 1,
     change_summary TEXT,
     content_hash TEXT NOT NULL
 );
