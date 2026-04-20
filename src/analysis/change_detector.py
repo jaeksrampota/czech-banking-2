@@ -87,14 +87,16 @@ def _compare_values(old, new, path: str, result: ChangeResult):
             else:
                 _compare_values(old[key], new[key], child_path, result)
     elif isinstance(old, list) and isinstance(new, list):
-        for i in range(max(len(old), len(new))):
-            child_path = f"{path}[{i}]"
-            if i >= len(old):
-                result.add(Change("added", child_path, None, _fmt(new[i])))
-            elif i >= len(new):
-                result.add(Change("removed", child_path, _fmt(old[i]), None))
-            else:
-                _compare_values(old[i], new[i], child_path, result)
+        # Compare lists by identity (content hash) rather than by position so
+        # reordering doesn't explode into a wall of false-positive changes.
+        old_by_key = _index_list(old)
+        new_by_key = _index_list(new)
+        for key in old_by_key.keys() - new_by_key.keys():
+            result.add(Change("removed", f"{path}[{key}]", _fmt(old_by_key[key]), None))
+        for key in new_by_key.keys() - old_by_key.keys():
+            result.add(Change("added", f"{path}[{key}]", None, _fmt(new_by_key[key])))
+        for key in old_by_key.keys() & new_by_key.keys():
+            _compare_values(old_by_key[key], new_by_key[key], f"{path}[{key}]", result)
     else:
         if old != new:
             result.add(Change("modified", path, _fmt(old), _fmt(new)))
@@ -136,12 +138,41 @@ def _is_noise_line(line: str) -> bool:
     stripped = line.strip("+-").strip()
     if not stripped:
         return True
-    if stripped.isdigit():
-        return True
-    return False
+    return bool(stripped.isdigit())
 
 
 def _fmt(value) -> str:
     if isinstance(value, (dict, list)):
         return json.dumps(value, ensure_ascii=False)[:200]
     return str(value)[:200]
+
+
+# Dict fields that, when present, serve as a stable identity for a list item.
+_IDENTITY_FIELDS = ("id", "uuid", "ico", "name", "nazev", "obchodniJmeno", "url")
+
+
+def _index_list(items: list) -> dict:
+    """Index list items by a stable identity so reordering doesn't look like a change.
+
+    Uses a known identity field if the item is a dict and exposes one, else a
+    hash of the item's JSON form. Falls back to position only when every item
+    hashes to the same bucket (unlikely in real data).
+    """
+    result: dict = {}
+    for idx, item in enumerate(items):
+        key = None
+        if isinstance(item, dict):
+            for field_name in _IDENTITY_FIELDS:
+                if field_name in item and item[field_name] not in (None, ""):
+                    key = f"{field_name}={item[field_name]}"
+                    break
+        if key is None:
+            try:
+                key = f"hash={hash(json.dumps(item, ensure_ascii=False, sort_keys=True))}"
+            except TypeError:
+                key = f"pos={idx}"
+        # Deduplicate collisions by suffixing the index.
+        if key in result:
+            key = f"{key}#{idx}"
+        result[key] = item
+    return result

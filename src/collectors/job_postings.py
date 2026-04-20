@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
@@ -98,8 +99,8 @@ class JobPostingsCollector(BaseCollector):
 
             title = title_el.get_text(strip=True)
             url = title_el.get("href", "")
-            if url and not url.startswith("http"):
-                url = f"https://www.jobs.cz{url}"
+            if url:
+                url = urljoin("https://www.jobs.cz/", url)
 
             company_el = card.select_one(".company-name, span.search-list__main-info__company")
             company = company_el.get_text(strip=True) if company_el else ""
@@ -132,21 +133,24 @@ class JobPostingsCollector(BaseCollector):
             return []
 
         soup = BeautifulSoup(resp.text, "lxml")
+        career_kws = ("pozic", "job", "karier", "vakanc", "nabid")
         for a in soup.select("a[href]"):
             text = a.get_text(strip=True)
             href = a.get("href", "")
-            if len(text.split()) >= 2 and len(text) > 10 and len(text) < 150:
-                if any(kw in href.lower() for kw in ["pozic", "job", "karier", "vakanc", "nabid"]):
-                    if not href.startswith("http"):
-                        href = f"{url.rstrip('/')}/{href.lstrip('/')}"
-                    jobs.append({
-                        "title": text,
-                        "company": company_name,
-                        "url": href,
-                        "location": "",
-                        "salary": "",
-                        "full_text": text.lower(),
-                    })
+            if (
+                len(text.split()) >= 2
+                and 10 < len(text) < 150
+                and any(kw in href.lower() for kw in career_kws)
+            ):
+                href = urljoin(url, href)
+                jobs.append({
+                    "title": text,
+                    "company": company_name,
+                    "url": href,
+                    "location": "",
+                    "salary": "",
+                    "full_text": text.lower(),
+                })
 
         logger.info("Found %d jobs on career page %s", len(jobs), url)
         return jobs

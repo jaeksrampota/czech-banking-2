@@ -1,5 +1,5 @@
+import contextlib
 import logging
-from pathlib import Path
 
 import feedparser
 import yaml
@@ -149,10 +149,8 @@ class NewsCollector(BaseCollector):
 
             published_at = None
             if published:
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     published_at = parse_date(published).isoformat()
-                except (ValueError, TypeError):
-                    pass
 
             score, tags = self._analyze_article(title, summary)
 

@@ -1,11 +1,11 @@
+import contextlib
 import json
 import logging
 import os
 from datetime import datetime
-from pathlib import Path
 
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from src.models.database import Database
@@ -86,10 +86,8 @@ def _write_signals_sheet(wb: Workbook, db: Database):
     for sig in signals:
         tags = sig.get("tags", "")
         if tags:
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 tags = ", ".join(json.loads(tags))
-            except (json.JSONDecodeError, TypeError):
-                pass
 
         row = [
             sig["id"][:8],

@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import click
@@ -54,7 +54,8 @@ def _parse_since(since: str) -> str:
     units = {"d": "days", "h": "hours", "w": "weeks"}
     if since[-1] in units:
         delta = timedelta(**{units[since[-1]]: int(since[:-1])})
-        return (datetime.utcnow() - delta).isoformat()
+        now = datetime.now(UTC).replace(tzinfo=None)
+        return (now - delta).isoformat(timespec="seconds")
     return since  # assume ISO date
 
 
@@ -285,6 +286,43 @@ def export(ctx, output):
 
 
 @cli.command()
+@click.pass_context
+def schedule(ctx):
+    """Run collectors on the schedule declared in settings.yaml."""
+    config_dir = ctx.obj["config_dir"]
+    settings_path = Path(config_dir) / "settings.yaml"
+    if settings_path.exists():
+        settings = yaml.safe_load(settings_path.read_text(encoding="utf-8"))
+        db_path = settings.get("database", {}).get("path", "data/db/ci_monitor.sqlite")
+    else:
+        db_path = "data/db/ci_monitor.sqlite"
+    if not os.path.isabs(db_path):
+        db_path = str(PROJECT_ROOT / db_path)
+
+    Database(db_path).initialize()  # ensure schema exists before first tick
+
+    from src.scheduler import build_scheduler
+    scheduler = build_scheduler(db_path, config_dir)
+    jobs = scheduler.get_jobs()
+    if not jobs:
+        console.print("[yellow]No schedules configured in settings.yaml.[/yellow]")
+        return
+
+    table = Table(title="Scheduled Jobs")
+    table.add_column("Job", style="bold")
+    table.add_column("Next run", style="dim")
+    for job in jobs:
+        table.add_row(job.id, str(job.trigger))
+    console.print(table)
+    console.print("[green]Scheduler running. Ctrl+C to stop.[/green]")
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown(wait=False)
+        console.print("[yellow]Scheduler stopped.[/yellow]")
+
+
+@cli.command()
 @click.option("--port", "-p", default=5000, help="Port to serve on")
 @click.option("--host", default="127.0.0.1", help="Host to bind to")
 @click.pass_context
@@ -302,7 +340,7 @@ def dashboard(ctx, port, host):
     if not os.path.isabs(db_path):
         db_path = str(PROJECT_ROOT / db_path)
 
-    from src.api import create_app, DASHBOARD_DIST
+    from src.api import DASHBOARD_DIST, create_app
     app = create_app(db_path)
 
     if not DASHBOARD_DIST.exists():
@@ -318,7 +356,7 @@ def dashboard(ctx, port, host):
             console.print("[dim]  cd dashboard && npm install && npm run build[/dim]")
             return
 
-    console.print(f"\n[bold]CI Monitor Dashboard[/bold]")
+    console.print("\n[bold]CI Monitor Dashboard[/bold]")
     console.print(f"  [dim]API:[/dim]       http://{host}:{port}/api/summary")
     console.print(f"  [dim]Dashboard:[/dim]  http://{host}:{port}/")
     console.print(f"  [dim]Database:[/dim]   {db_path}\n")

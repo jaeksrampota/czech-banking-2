@@ -1,5 +1,6 @@
 import json
 import logging
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
@@ -10,6 +11,7 @@ from src.models import Signal
 logger = logging.getLogger(__name__)
 
 ARES_API_URL = "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/{ico}"
+JUSTICE_BASE = "https://or.justice.cz/ias/ui/"
 JUSTICE_SEARCH_URL = "https://or.justice.cz/ias/ui/rejstrik-$firma"
 JUSTICE_VYSLEDKY_URL = "https://or.justice.cz/ias/ui/rejstrik-firma.vysledky"
 
@@ -133,13 +135,7 @@ class AresCollector(BaseCollector):
             logger.warning("No Justice.cz excerpt found for ICO %s", ico)
             return []
 
-        # Normalize URL
-        if excerpt_link.startswith("./"):
-            excerpt_link = f"https://or.justice.cz/ias/ui/{excerpt_link[2:]}"
-        elif excerpt_link.startswith("/"):
-            excerpt_link = f"https://or.justice.cz{excerpt_link}"
-        elif not excerpt_link.startswith("http"):
-            excerpt_link = f"https://or.justice.cz/ias/ui/{excerpt_link}"
+        excerpt_link = urljoin(JUSTICE_BASE, excerpt_link)
 
         try:
             content, has_changed = self._fetch_and_store_snapshot(
@@ -207,9 +203,8 @@ class AresCollector(BaseCollector):
                 if text and not result["capital"]:
                     result["capital"] = text
                     current_section = None
-            elif current_section == "activities":
-                if text:
-                    result["activities"].append(text)
+            elif current_section == "activities" and text:
+                result["activities"].append(text)
 
         return result
 

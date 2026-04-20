@@ -7,10 +7,12 @@ from pathlib import Path
 
 import httpx
 import yaml
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from src.alerts import TelegramAlerter
 from src.models import Signal
 from src.models.database import Database
+from src.security.urls import UnsafeURLError, validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +39,17 @@ class BaseCollector(ABC):
     # If this key is missing from a competitor's sources, that competitor is skipped.
     required_source_key: str | None = None
 
-    def __init__(self, db: Database, config_dir: str):
+    def __init__(
+        self,
+        db: Database,
+        config_dir: str,
+        alerter: TelegramAlerter | None = None,
+    ):
         self.db = db
         self.config_dir = Path(config_dir)
         self._last_request_time: float = 0
         self._client: httpx.Client | None = None
+        self.alerter = alerter if alerter is not None else TelegramAlerter()
 
     def __enter__(self):
         self._client = httpx.Client(timeout=self.timeout, follow_redirects=True)
@@ -72,6 +80,12 @@ class BaseCollector(ABC):
         }
 
     def _fetch(self, url: str, **kwargs) -> httpx.Response:
+        try:
+            validate_url(url)
+        except UnsafeURLError as e:
+            logger.warning("Refusing to fetch unsafe URL %s: %s", url, e)
+            raise CollectorError(str(e)) from e
+
         self._rate_limit()
         headers = self._get_headers()
         headers.update(kwargs.pop("headers", {}))
@@ -141,18 +155,24 @@ class BaseCollector(ABC):
             try:
                 signals = self.collect(cid)
                 new_count = 0
+                newly_inserted: list[Signal] = []
                 for sig in signals:
                     if self.db.insert_signal(sig.to_dict()):
                         new_count += 1
+                        newly_inserted.append(sig)
                 self.db.finish_collector_run(run_id, "success", new_count)
                 results["new_signals"] += new_count
                 results["competitors"][cid] = {"status": "success", "signals": new_count}
                 logger.info("[%s] %s: %d new signals", self.name, cid, new_count)
+                if self.alerter.enabled and newly_inserted:
+                    alerted = self.alerter.send_signals(newly_inserted)
+                    if alerted:
+                        logger.info("[%s] %s: alerted on %d signals", self.name, cid, alerted)
             except Exception as e:
                 self.db.finish_collector_run(run_id, "failed", error_message=str(e))
                 results["errors"] += 1
                 results["competitors"][cid] = {"status": "failed", "error": str(e)}
-                logger.error("[%s] %s failed: %s", self.name, cid, e)
+                logger.exception("[%s] %s failed: %s", self.name, cid, e)
 
         results["total"] = len(competitor_ids)
         return results

@@ -1,8 +1,12 @@
-from dataclasses import dataclass, field
-from datetime import datetime
 import hashlib
 import json
 import uuid
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")
 
 
 @dataclass
@@ -27,7 +31,7 @@ class Signal:
         if not self.id:
             self.id = str(uuid.uuid4())
         if not self.detected_at:
-            self.detected_at = datetime.utcnow().isoformat()
+            self.detected_at = _utc_now_iso()
         if not self.content_hash:
             raw = f"{self.competitor_id}|{self.source}|{self.signal_type}|{self.title}|{self.content}"
             self.content_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
