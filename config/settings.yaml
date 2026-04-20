@@ -8,6 +8,8 @@ collectors:
     schedule: "daily"
   news:
     schedule: "hourly"
+  website:
+    schedule: "daily"
 
 logging:
   level: "INFO"

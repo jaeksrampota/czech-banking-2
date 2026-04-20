@@ -24,6 +24,7 @@ from apscheduler.triggers.cron import CronTrigger
 from src.collectors.ares import AresCollector
 from src.collectors.job_postings import JobPostingsCollector
 from src.collectors.news import NewsCollector
+from src.collectors.website import WebsiteCollector
 from src.models.database import Database
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ _COLLECTOR_FACTORIES: dict[str, Callable] = {
     "ares": AresCollector,
     "job_postings": JobPostingsCollector,
     "news": NewsCollector,
+    "website": WebsiteCollector,
 }
 
 

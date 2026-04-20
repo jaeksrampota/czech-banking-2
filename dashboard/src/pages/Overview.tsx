@@ -21,8 +21,8 @@ export default function Overview() {
 
   const header = (
     <PageHeader
-      title="Overview"
-      subtitle="Signal volume and recent intelligence"
+      title="Přehled"
+      subtitle="Objem signálů a nejnovější události"
       loading={loading}
       lastUpdated={lastUpdated}
       onRefresh={refresh}
@@ -49,7 +49,7 @@ export default function Overview() {
     return (
       <div className="space-y-6 max-w-[1400px] mx-auto">
         {header}
-        <EmptyState text="No data available. Run collectors first." />
+        <EmptyState text="Žádná data. Spusťte nejdřív kolektory." />
       </div>
     );
   }
@@ -59,40 +59,40 @@ export default function Overview() {
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
       {header}
-      {/* KPI Row */}
+      {/* Horní řada KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
-          label="Total Signals"
+          label="Signály celkem"
           value={stats.total_signals}
           icon={<Radio size={16} />}
           accent="text-[#e6cf00]"
         />
         <KPICard
-          label="Avg Severity"
+          label="Prům. závažnost"
           value={stats.avg_severity?.toFixed(1) || '—'}
           icon={<TrendingUp size={16} />}
           accent="text-red-500"
         />
         <KPICard
-          label="Sources Active"
+          label="Aktivní zdroje"
           value={stats.sources_active}
           icon={<Activity size={16} />}
           accent="text-emerald-500"
         />
         <KPICard
-          label="Competitors"
+          label="Společnosti"
           value={stats.competitors_with_signals}
           icon={<Building2 size={16} />}
           accent="text-blue-500"
         />
       </div>
 
-      {/* Charts Row */}
+      {/* Řada s grafy */}
       <div className="grid grid-cols-12 gap-6">
-        {/* Signal Timeline */}
+        {/* Časová osa signálů */}
         <div className="col-span-12 lg:col-span-8 bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6">
-            Signal Volume — Last 30 Days
+            Objem signálů — posledních 30 dní
           </h3>
           <div className="h-[240px]">
             {data.timeline.length > 0 ? (
@@ -118,7 +118,7 @@ export default function Overview() {
                   />
                   <Tooltip
                     contentStyle={{ fontSize: 10, fontWeight: 700, borderRadius: 6, border: '1px solid #e2e8f0' }}
-                    labelFormatter={(d) => `Date: ${d}`}
+                    labelFormatter={(d) => `Datum: ${d}`}
                   />
                   <Area
                     type="monotone"
@@ -130,15 +130,15 @@ export default function Overview() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyState text="No timeline data yet" />
+              <EmptyState text="Zatím žádná data pro časovou osu" />
             )}
           </div>
         </div>
 
-        {/* Severity Distribution */}
+        {/* Rozložení závažností */}
         <div className="col-span-12 lg:col-span-4 bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6">
-            Severity Distribution
+            Rozložení závažností
           </h3>
           <div className="h-[180px]">
             {data.severity_distribution.length > 0 ? (
@@ -161,15 +161,14 @@ export default function Overview() {
                   </Pie>
                   <Tooltip
                     contentStyle={{ fontSize: 10, fontWeight: 700, borderRadius: 6, border: '1px solid #e2e8f0' }}
-                    formatter={(value, name) => [`${value} signals`, `Severity ${name}`]}
+                    formatter={(value, name) => [`${value} signálů`, `Závažnost ${name}`]}
                   />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyState text="No severity data" />
+              <EmptyState text="Žádná data" />
             )}
           </div>
-          {/* Legend */}
           <div className="flex flex-wrap gap-3 mt-2 justify-center">
             {data.severity_distribution.map((d) => (
               <div key={d.severity} className="flex items-center gap-1.5">
@@ -178,7 +177,7 @@ export default function Overview() {
                   style={{ backgroundColor: PIE_COLORS[d.severity - 1] }}
                 />
                 <span className="text-[9px] font-bold text-slate-500">
-                  S{d.severity}: {d.count}
+                  Z{d.severity}: {d.count}
                 </span>
               </div>
             ))}
@@ -186,12 +185,12 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* Bottom Row */}
+      {/* Spodní řada */}
       <div className="grid grid-cols-12 gap-6">
-        {/* By Source */}
+        {/* Dle zdroje */}
         <div className="col-span-12 lg:col-span-5 bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6">
-            Signals by Source
+            Signály podle zdroje
           </h3>
           <div className="h-[220px]">
             {data.by_source.length > 0 ? (
@@ -209,23 +208,23 @@ export default function Overview() {
                     tick={{ fontSize: 10, fontWeight: 900, fill: '#334155' }}
                     axisLine={false}
                     tickLine={false}
-                    width={60}
+                    width={80}
                   />
                   <Tooltip contentStyle={{ fontSize: 10, fontWeight: 700, borderRadius: 6, border: '1px solid #e2e8f0' }} />
                   <Bar dataKey="count" fill="#fee600" radius={[0, 4, 4, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyState text="No source data" />
+              <EmptyState text="Žádná data" />
             )}
           </div>
         </div>
 
-        {/* Recent Signals */}
+        {/* Nejnovější signály */}
         <div className="col-span-12 lg:col-span-7 bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-900">
-              Latest Intelligence
+              Nejnovější události
             </h3>
           </div>
           <div className="divide-y divide-slate-50 max-h-[320px] overflow-y-auto">
@@ -267,7 +266,7 @@ export default function Overview() {
               ))
             ) : (
               <div className="px-6 py-12">
-                <EmptyState text="No signals collected yet" />
+                <EmptyState text="Zatím žádné signály" />
               </div>
             )}
           </div>

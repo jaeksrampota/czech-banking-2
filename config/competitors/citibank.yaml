@@ -1,0 +1,17 @@
+id: citibank
+name: Citibank
+parent_group: Citigroup
+tier: 3
+sources:
+  website_urls:
+  - https://www.citibank.cz/
+  news_search_name: Citibank Česko
+  news_rss: https://news.google.com/rss/search?q=Citibank+%C4%8Cesko&hl=cs&gl=CZ&ceid=CZ:cs
+monitoring:
+  priority: low
+aliases:
+- Citibank
+- Citi
+segmenty:
+- ucty
+- investice

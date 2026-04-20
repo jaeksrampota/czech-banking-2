@@ -1,0 +1,17 @@
+id: csob_postovni
+name: ČSOB Poštovní spořitelna
+parent_group: KBC Group
+tier: 2
+sources:
+  website_urls:
+  - https://www.postovnisporitelna.cz/
+  news_search_name: ČSOB Poštovní spořitelna
+  news_rss: https://news.google.com/rss/search?q=%C4%8CSOB+Po%C5%A1tovn%C3%AD+spo%C5%99itelna&hl=cs&gl=CZ&ceid=CZ:cs
+monitoring:
+  priority: medium
+aliases:
+- ČSOB Poštovní spořitelna
+- Poštovní spořitelna
+segmenty:
+- ucty
+- investice

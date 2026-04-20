@@ -51,4 +51,138 @@ export interface Summary {
   timeline: { date: string; count: number }[];
 }
 
-export type Page = 'overview' | 'signals' | 'competitors' | 'status';
+// ── FINeCIM-inspirované typy ────────────────────────────────
+
+export interface ProduktovaLinie {
+  id: string;
+  segment_id: string;
+  slug: string;
+  nazev: string;
+}
+
+export interface Segment {
+  id: string;
+  slug: string;
+  nazev: string;
+  poradi: number;
+  ma_produkty: number;
+  produktove_linie?: ProduktovaLinie[];
+  spolecnosti?: Competitor[];
+}
+
+export interface Clanek {
+  id: string;
+  competitor_id: string | null;
+  segment_id: string | null;
+  produktova_linie_id: string | null;
+  nazev: string;
+  datum: string;
+  typ_zpravy: string | null;
+  stav: string;
+  perex: string | null;
+  telo: string | null;
+  tagy: string[];
+  zdrojovy_signal_id: string | null;
+  url: string | null;
+  pridano_at: string;
+}
+
+export interface ClanekDetail extends Clanek {
+  related: Clanek[];
+}
+
+export interface Produkt {
+  id: string;
+  competitor_id: string;
+  segment_id: string;
+  produktova_linie_id: string | null;
+  zakaznicky_segment: string | null;
+  nazev: string;
+  kratky_popis: string | null;
+  atributy: Record<string, unknown>;
+  url: string | null;
+  aktivni: number;
+  pridano_at: string;
+}
+
+export interface Kampan {
+  id: string;
+  competitor_id: string;
+  segment_id: string | null;
+  produktova_linie_id: string | null;
+  nazev: string;
+  zacatek: string | null;
+  aktualizace: string | null;
+  popis: string | null;
+  media_typy: string[];
+  typ_kampane: string | null;
+  kreativa_url: string | null;
+  pridano_at: string;
+}
+
+export interface MysteryShop {
+  id: string;
+  competitor_id: string | null;
+  segment_id: string | null;
+  nazev: string;
+  datum: string;
+  popis: string | null;
+  pdf_url: string | null;
+  pridano_at: string;
+}
+
+export interface ExecSummary {
+  id: string;
+  segment_id: string;
+  rok: number;
+  mesic: number;
+  nazev: string | null;
+  telo: string | null;
+  pdf_url: string | null;
+  pridano_at: string;
+}
+
+export interface Analyza {
+  id: string;
+  segment_id: string | null;
+  nazev: string;
+  datum: string;
+  typ_analyzy: string | null;
+  telo: string | null;
+  soubory: string[];
+  pridano_at: string;
+}
+
+export interface SpolecnostDetail extends Competitor {
+  popis: string | null;
+  zakladni_kapital: string | null;
+  sidlo: string | null;
+  akcionar: string | null;
+  pocet_klientu: number | null;
+  pocet_pobocek: number | null;
+  pocet_bankomatu: number | null;
+  socialni_site: Record<string, string>;
+  predstavenstvo: { jmeno: string; role: string }[];
+  posledni_aktualizace: string | null;
+  segmenty: { id: string; slug: string; nazev: string }[];
+  clanky: Clanek[];
+  kampane: Kampan[];
+  mystery_shopping: MysteryShop[];
+  produkty: Produkt[];
+}
+
+export interface NovinkyResponse {
+  clanky: Clanek[];
+  signaly_fallback: Signal[];
+}
+
+export type Page = 'overview' | 'monitor' | 'competitors' | 'status';
+
+export type MonitorTab =
+  | 'novinky'
+  | 'spolecnosti'
+  | 'produkty'
+  | 'srovnani'
+  | 'kampane'
+  | 'mystery'
+  | 'executive';

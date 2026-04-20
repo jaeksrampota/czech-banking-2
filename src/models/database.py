@@ -56,9 +56,299 @@ class Database:
                 (data["id"], data["name"], data.get("parent_group"),
                  data["tier"], ico, str(f)),
             )
+            # M:N vazba na segmenty
+            segmenty = data.get("segmenty") or []
+            self.conn.execute(
+                "DELETE FROM spolecnosti_segmenty WHERE competitor_id = ?",
+                (data["id"],),
+            )
+            for seg_slug in segmenty:
+                self.conn.execute(
+                    """INSERT OR IGNORE INTO spolecnosti_segmenty (competitor_id, segment_id)
+                       SELECT ?, id FROM segmenty WHERE slug = ?""",
+                    (data["id"], seg_slug),
+                )
             count += 1
         self.conn.commit()
         logger.info("Seeded %d competitors", count)
+
+    # ── Segmenty ─────────────────────────────────────────────────
+
+    def seed_segments(self, config_dir: str):
+        segments_path = Path(config_dir) / "segments.yaml"
+        if not segments_path.exists():
+            logger.warning("No segments.yaml at %s", segments_path)
+            return
+        data = yaml.safe_load(segments_path.read_text(encoding="utf-8"))
+        count_seg = 0
+        count_lin = 0
+        for seg in data.get("segmenty", []):
+            self.conn.execute(
+                """INSERT INTO segmenty (id, slug, nazev, poradi, ma_produkty)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(id) DO UPDATE SET
+                     slug=excluded.slug,
+                     nazev=excluded.nazev,
+                     poradi=excluded.poradi,
+                     ma_produkty=excluded.ma_produkty""",
+                (seg["id"], seg["slug"], seg["nazev"],
+                 seg.get("poradi", 0), 1 if seg.get("ma_produkty", True) else 0),
+            )
+            count_seg += 1
+            for linie in seg.get("produktove_linie", []):
+                linie_id = f"{seg['id']}__{linie['slug']}"
+                self.conn.execute(
+                    """INSERT INTO produktove_linie (id, segment_id, slug, nazev)
+                       VALUES (?, ?, ?, ?)
+                       ON CONFLICT(id) DO UPDATE SET
+                         nazev=excluded.nazev""",
+                    (linie_id, seg["id"], linie["slug"], linie["nazev"]),
+                )
+                count_lin += 1
+        self.conn.commit()
+        logger.info("Seeded %d segmenty, %d produktove_linie", count_seg, count_lin)
+
+    def get_segmenty(self) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT * FROM segmenty ORDER BY poradi, nazev"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_segment(self, slug: str) -> dict | None:
+        row = self.conn.execute(
+            "SELECT * FROM segmenty WHERE slug = ?", (slug,)
+        ).fetchone()
+        return dict(row) if row else None
+
+    def get_produktove_linie(self, segment_id: str | None = None) -> list[dict]:
+        if segment_id:
+            rows = self.conn.execute(
+                "SELECT * FROM produktove_linie WHERE segment_id = ? ORDER BY nazev",
+                (segment_id,),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM produktove_linie ORDER BY segment_id, nazev"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_companies_in_segment(self, segment_id: str) -> list[dict]:
+        rows = self.conn.execute(
+            """SELECT c.*
+               FROM competitors c
+               JOIN spolecnosti_segmenty ss ON ss.competitor_id = c.id
+               WHERE ss.segment_id = ?
+               ORDER BY c.tier, c.name""",
+            (segment_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_company_detail(self, competitor_id: str) -> dict | None:
+        row = self.conn.execute(
+            """SELECT c.*,
+                      d.popis, d.zakladni_kapital, d.sidlo, d.akcionar,
+                      d.pocet_klientu, d.pocet_pobocek, d.pocet_bankomatu,
+                      d.socialni_site, d.predstavenstvo, d.posledni_aktualizace
+               FROM competitors c
+               LEFT JOIN spolecnost_detail d ON d.competitor_id = c.id
+               WHERE c.id = ?""",
+            (competitor_id,),
+        ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        seg_rows = self.conn.execute(
+            """SELECT s.id, s.slug, s.nazev
+               FROM segmenty s
+               JOIN spolecnosti_segmenty ss ON ss.segment_id = s.id
+               WHERE ss.competitor_id = ?
+               ORDER BY s.poradi""",
+            (competitor_id,),
+        ).fetchall()
+        result["segmenty"] = [dict(r) for r in seg_rows]
+        return result
+
+    # ── FINeCIM-inspirované gettery ──────────────────────────────
+
+    def get_clanky(
+        self,
+        segment_id: str | None = None,
+        competitor_id: str | None = None,
+        produktova_linie_id: str | None = None,
+        typ_zpravy: str | None = None,
+        tag: str | None = None,
+        od: str | None = None,
+        do: str | None = None,
+        limit: int = 100,
+    ) -> list[dict]:
+        query = "SELECT * FROM clanky WHERE 1=1"
+        params: list = []
+        if segment_id:
+            query += " AND segment_id = ?"
+            params.append(segment_id)
+        if competitor_id:
+            query += " AND competitor_id = ?"
+            params.append(competitor_id)
+        if produktova_linie_id:
+            query += " AND produktova_linie_id = ?"
+            params.append(produktova_linie_id)
+        if typ_zpravy:
+            query += " AND typ_zpravy = ?"
+            params.append(typ_zpravy)
+        if tag:
+            # tagy je JSON array stored as TEXT; LIKE matching na uvozovkách
+            query += " AND tagy LIKE ?"
+            params.append(f'%"{tag}"%')
+        if od:
+            query += " AND datum >= ?"
+            params.append(od)
+        if do:
+            query += " AND datum <= ?"
+            params.append(do)
+        query += " ORDER BY datum DESC"
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+        rows = self.conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_clanek(self, clanek_id: str) -> dict | None:
+        row = self.conn.execute(
+            "SELECT * FROM clanky WHERE id = ?", (clanek_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+    def get_related_clanky(
+        self, clanek_id: str, segment_id: str | None, limit: int = 6,
+    ) -> list[dict]:
+        if segment_id:
+            rows = self.conn.execute(
+                """SELECT * FROM clanky
+                   WHERE segment_id = ? AND id != ?
+                   ORDER BY datum DESC LIMIT ?""",
+                (segment_id, clanek_id, limit),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM clanky WHERE id != ? ORDER BY datum DESC LIMIT ?",
+                (clanek_id, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_produkty(
+        self,
+        segment_id: str | None = None,
+        competitor_id: str | None = None,
+        produktova_linie_id: str | None = None,
+        zakaznicky_segment: str | None = None,
+    ) -> list[dict]:
+        query = "SELECT * FROM produkty WHERE aktivni = 1"
+        params: list = []
+        if segment_id:
+            query += " AND segment_id = ?"
+            params.append(segment_id)
+        if competitor_id:
+            query += " AND competitor_id = ?"
+            params.append(competitor_id)
+        if produktova_linie_id:
+            query += " AND produktova_linie_id = ?"
+            params.append(produktova_linie_id)
+        if zakaznicky_segment:
+            query += " AND zakaznicky_segment = ?"
+            params.append(zakaznicky_segment)
+        query += " ORDER BY nazev"
+        rows = self.conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_kampane(
+        self,
+        segment_id: str | None = None,
+        competitor_id: str | None = None,
+        media_typ: str | None = None,
+        od: str | None = None,
+        do: str | None = None,
+    ) -> list[dict]:
+        query = "SELECT * FROM kampane WHERE 1=1"
+        params: list = []
+        if segment_id:
+            query += " AND segment_id = ?"
+            params.append(segment_id)
+        if competitor_id:
+            query += " AND competitor_id = ?"
+            params.append(competitor_id)
+        if media_typ:
+            query += " AND media_typy LIKE ?"
+            params.append(f'%"{media_typ}"%')
+        if od:
+            query += " AND zacatek >= ?"
+            params.append(od)
+        if do:
+            query += " AND zacatek <= ?"
+            params.append(do)
+        query += " ORDER BY COALESCE(aktualizace, zacatek) DESC"
+        rows = self.conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_mystery_shopping(
+        self,
+        segment_id: str | None = None,
+        competitor_id: str | None = None,
+    ) -> list[dict]:
+        query = "SELECT * FROM mystery_shopping WHERE 1=1"
+        params: list = []
+        if segment_id:
+            query += " AND segment_id = ?"
+            params.append(segment_id)
+        if competitor_id:
+            query += " AND competitor_id = ?"
+            params.append(competitor_id)
+        query += " ORDER BY datum DESC"
+        rows = self.conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_executive_summary(self, segment_id: str | None = None) -> list[dict]:
+        if segment_id:
+            rows = self.conn.execute(
+                "SELECT * FROM executive_summary WHERE segment_id = ? ORDER BY rok DESC, mesic DESC",
+                (segment_id,),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM executive_summary ORDER BY rok DESC, mesic DESC"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_analyzy(self, segment_id: str | None = None) -> list[dict]:
+        if segment_id:
+            rows = self.conn.execute(
+                "SELECT * FROM analyzy WHERE segment_id = ? ORDER BY datum DESC",
+                (segment_id,),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM analyzy ORDER BY datum DESC"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def insert_clanek_from_signal(self, signal_row: dict, segment_id: str | None = None) -> bool:
+        """Vytvoří článek z existujícího signálu. Idempotentní (unique index na zdrojovy_signal_id)."""
+        import uuid
+        tagy = signal_row.get("tags") or "[]"
+        cursor = self.conn.execute(
+            """INSERT OR IGNORE INTO clanky
+               (id, competitor_id, segment_id, nazev, datum, typ_zpravy,
+                stav, perex, telo, tagy, zdrojovy_signal_id, url, pridano_at)
+               VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?)""",
+            (str(uuid.uuid4()), signal_row["competitor_id"], segment_id,
+             signal_row["title"], signal_row["detected_at"][:10],
+             signal_row.get("signal_type", "news"),
+             (signal_row.get("content") or "")[:500],
+             signal_row.get("content", ""),
+             tagy, signal_row["id"], signal_row.get("url"),
+             datetime.utcnow().isoformat()),
+        )
+        self.conn.commit()
+        return cursor.rowcount > 0
 
     def get_competitors(self) -> list[dict]:
         rows = self.conn.execute(

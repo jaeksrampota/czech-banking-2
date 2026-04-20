@@ -1,0 +1,21 @@
+id: trinity_bank
+name: Trinity Bank
+parent_group: null
+tier: 2
+sources:
+  ares_ico: '47115378'
+  careers_url: https://www.trinitybank.cz/o-bance/kariera
+  careers_search_name: Trinity Bank
+  pricing_url: https://www.trinitybank.cz/dokumenty
+  website_urls:
+  - https://www.trinitybank.cz/
+  news_search_name: Trinity Bank
+  news_rss: https://news.google.com/rss/search?q=Trinity+Bank+%C4%8Cesko&hl=cs&gl=CZ&ceid=CZ:cs
+monitoring:
+  priority: low
+aliases:
+- Trinity Bank
+- Trinity
+segmenty:
+- ucty
+- hypoteky

@@ -12,3 +12,6 @@ monitoring:
   priority: medium
 aliases:
 - Revolut
+segmenty:
+- ucty
+- investice

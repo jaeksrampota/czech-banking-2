@@ -30,7 +30,7 @@ export default function PageHeader({
             className="text-[9px] font-bold text-slate-400 uppercase tracking-wider tabular-nums"
             title={lastUpdated.toLocaleString('cs-CZ')}
           >
-            Updated {formatAgo(lastUpdated)}
+            Aktualizováno {formatAgo(lastUpdated)}
           </span>
         )}
         {onRefresh && (
@@ -38,7 +38,7 @@ export default function PageHeader({
             type="button"
             onClick={onRefresh}
             disabled={loading}
-            aria-label="Refresh data"
+            aria-label="Obnovit data"
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest',
               'bg-white border border-slate-200 rounded-md shadow-sm transition-colors',
@@ -46,7 +46,7 @@ export default function PageHeader({
             )}
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-            <span>Refresh</span>
+            <span>Obnovit</span>
           </button>
         )}
       </div>
@@ -57,10 +57,10 @@ export default function PageHeader({
 function formatAgo(d: Date): string {
   const diff = Date.now() - d.getTime();
   const secs = Math.floor(diff / 1000);
-  if (secs < 5) return 'just now';
-  if (secs < 60) return `${secs}s ago`;
+  if (secs < 5) return 'právě teď';
+  if (secs < 60) return `před ${secs} s`;
   const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return `před ${mins} min`;
   const hours = Math.floor(mins / 60);
-  return `${hours}h ago`;
+  return `před ${hours} h`;
 }

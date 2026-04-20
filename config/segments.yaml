@@ -1,0 +1,39 @@
+segmenty:
+  - id: ucty
+    slug: ucty
+    nazev: Účty
+    poradi: 1
+    ma_produkty: true
+    produktove_linie:
+      - slug: bezne_ucty
+        nazev: Běžné účty
+      - slug: debetni_karty
+        nazev: Debetní karty
+      - slug: mobilni_aplikace
+        nazev: Mobilní aplikace
+
+  - id: hypoteky
+    slug: hypoteky
+    nazev: Hypotéky
+    poradi: 2
+    ma_produkty: true
+    produktove_linie:
+      - slug: hypoteky
+        nazev: Hypotéky
+      - slug: americke_hypoteky
+        nazev: Americké hypotéky
+      - slug: pojisteni_schopnosti_splacet
+        nazev: Pojištění schopnosti splácet
+
+  - id: investice
+    slug: investice
+    nazev: Investice
+    poradi: 3
+    ma_produkty: true
+    produktove_linie:
+      - slug: investicni_fondy
+        nazev: Investiční fondy
+      - slug: investicni_platformy
+        nazev: Investiční platformy
+      - slug: penzijni_sporeni
+        nazev: Penzijní spoření

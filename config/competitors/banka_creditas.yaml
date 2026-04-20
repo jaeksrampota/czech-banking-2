@@ -1,0 +1,22 @@
+id: banka_creditas
+name: Banka CREDITAS
+parent_group: CREDITAS
+tier: 2
+sources:
+  ares_ico: '63492555'
+  careers_url: https://www.creditas.cz/kariera
+  careers_search_name: Banka CREDITAS
+  pricing_url: https://www.creditas.cz/dokumenty
+  website_urls:
+  - https://www.creditas.cz/
+  news_search_name: Banka CREDITAS
+  news_rss: https://news.google.com/rss/search?q=Banka+CREDITAS&hl=cs&gl=CZ&ceid=CZ:cs
+monitoring:
+  priority: medium
+aliases:
+- Banka CREDITAS
+- CREDITAS
+segmenty:
+- ucty
+- hypoteky
+- investice

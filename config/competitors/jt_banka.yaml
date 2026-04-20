@@ -1,0 +1,23 @@
+id: jt_banka
+name: J&T BANKA
+parent_group: J&T Finance Group
+tier: 2
+sources:
+  ares_ico: '47115378'
+  careers_url: https://www.jtbank.cz/kariera
+  careers_search_name: J&T BANKA
+  pricing_url: https://www.jtbank.cz/dokumenty
+  website_urls:
+  - https://www.jtbank.cz/
+  news_search_name: J&T BANKA
+  news_rss: https://news.google.com/rss/search?q=J%26T+banka&hl=cs&gl=CZ&ceid=CZ:cs
+monitoring:
+  priority: medium
+aliases:
+- J&T BANKA
+- J&T Banka
+- JT Banka
+- J&T
+segmenty:
+- ucty
+- investice

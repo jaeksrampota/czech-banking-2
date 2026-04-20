@@ -18,17 +18,17 @@ const TIER_COLORS: Record<number, string> = {
 };
 
 const TIER_INFO: Record<number, { label: string; desc: string; badge: string }> = {
-  1: { label: 'Tier 1 — Universal Banks', desc: 'Dominant incumbents, foreign-owned', badge: 'border-red-200 text-red-600 bg-red-50' },
-  2: { label: 'Tier 2 — Challengers', desc: 'Established mid-market & digital-first', badge: 'border-blue-200 text-blue-600 bg-blue-50' },
-  3: { label: 'Tier 3 — Fintechs & Neobanks', desc: 'Disruptors & new entrants', badge: 'border-slate-200 text-slate-600 bg-slate-50' },
+  1: { label: 'Tier 1 — Univerzální banky', desc: 'Dominantní hráči, převážně zahraničně vlastněni', badge: 'border-red-200 text-red-600 bg-red-50' },
+  2: { label: 'Tier 2 — Vyzyvatelé', desc: 'Střední a digitální banky', badge: 'border-blue-200 text-blue-600 bg-blue-50' },
+  3: { label: 'Tier 3 — Fintech a specialisté', desc: 'Nová generace a úzce zaměření hráči', badge: 'border-slate-200 text-slate-600 bg-slate-50' },
 };
 
 type MetricKey = 'signal_count' | 'avg_severity' | 'tier';
 
 const METRIC_LABELS: Record<MetricKey, string> = {
-  signal_count: 'Signal Count',
-  avg_severity: 'Avg Severity',
-  tier: 'Market Tier',
+  signal_count: 'Počet signálů',
+  avg_severity: 'Prům. závažnost',
+  tier: 'Tier',
 };
 
 const METRIC_DOMAINS: Record<MetricKey, [number, number]> = {
@@ -81,8 +81,8 @@ export default function Competitors() {
 
   const header = (
     <PageHeader
-      title="Competitors"
-      subtitle="Tier-level positioning and per-competitor drill-down"
+      title="Společnosti"
+      subtitle="Pozicování podle tieru a detail jednotlivých hráčů"
       loading={loading}
       lastUpdated={lastUpdated}
       onRefresh={refresh}
@@ -115,7 +115,7 @@ export default function Competitors() {
       <div className="col-span-12 lg:col-span-3 space-y-6">
         {/* Tier slicer */}
         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-4">
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Market Tier</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tier trhu</label>
           <div className="flex flex-wrap gap-2">
             {[1, 2, 3].map((t) => (
               <button
@@ -135,8 +135,8 @@ export default function Competitors() {
         </div>
 
         {/* Axis selectors */}
-        <AxisSelector label="X-Axis Metric" value={xAxis} onChange={setXAxis} activeColor="bg-[#fee600] border-[#fee600] text-black" />
-        <AxisSelector label="Y-Axis Metric" value={yAxis} onChange={setYAxis} activeColor="bg-slate-800 border-slate-800 text-white" />
+        <AxisSelector label="Osa X" value={xAxis} onChange={setXAxis} activeColor="bg-[#fee600] border-[#fee600] text-black" />
+        <AxisSelector label="Osa Y" value={yAxis} onChange={setYAxis} activeColor="bg-slate-800 border-slate-800 text-white" />
 
         {/* Tier legend */}
         <div className="space-y-3">
@@ -166,7 +166,7 @@ export default function Competitors() {
         {/* Scatter chart */}
         <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Competitive Landscape</h2>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Konkurenční mapa</h2>
             <div className="flex gap-4">
               {[1, 2, 3].map((t) => (
                 <div key={t} className="flex items-center gap-1.5">
@@ -209,8 +209,8 @@ export default function Competitors() {
                         <div className="bg-white border border-slate-200 p-4 rounded shadow-2xl">
                           <div className="text-slate-900 font-black text-xs uppercase tracking-tight mb-2 border-b border-slate-100 pb-2">{d.name}</div>
                           <div className="space-y-1 text-[10px] font-bold">
-                            <div className="flex justify-between gap-8"><span className="text-slate-400">Signals</span><span className="text-slate-900">{d.signal_count}</span></div>
-                            <div className="flex justify-between gap-8"><span className="text-slate-400">Avg Severity</span><span className="text-slate-900">{d.avg_severity}</span></div>
+                            <div className="flex justify-between gap-8"><span className="text-slate-400">Signály</span><span className="text-slate-900">{d.signal_count}</span></div>
+                            <div className="flex justify-between gap-8"><span className="text-slate-400">Prům. závažnost</span><span className="text-slate-900">{d.avg_severity}</span></div>
                             <div className="flex justify-between gap-8"><span className="text-slate-400">Tier</span><span className="text-slate-900">{d.tier}</span></div>
                           </div>
                         </div>
@@ -244,7 +244,7 @@ export default function Competitors() {
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-full text-[10px] font-black uppercase tracking-widest text-slate-300">
-                No competitors match selected tiers
+                Žádné společnosti neodpovídají vybraným tierům
               </div>
             )}
           </div>
@@ -255,7 +255,7 @@ export default function Competitors() {
           {selected ? (
             <div className="w-full">
               <button onClick={() => setSelectedId(null)} className="text-slate-400 hover:text-slate-900 transition-colors flex items-center gap-2 text-[10px] font-black uppercase tracking-widest mb-6">
-                <ArrowLeft size={14} /> Back
+                <ArrowLeft size={14} /> Zpět
               </button>
               <div className="flex items-start gap-8">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center border-4 shadow-inner shrink-0" style={{ borderColor: TIER_COLORS[selected.tier], backgroundColor: `${TIER_COLORS[selected.tier]}10` }}>
@@ -265,11 +265,11 @@ export default function Competitors() {
                   <h3 className="text-2xl font-black text-slate-900 tracking-tight">{selected.name}</h3>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">{TIER_INFO[selected.tier]?.label}</p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <StatBox label="Signals" value={selected.signal_count} />
-                    <StatBox label="Avg Severity" value={selected.avg_severity?.toFixed(1) || '—'} />
+                    <StatBox label="Signály" value={selected.signal_count} />
+                    <StatBox label="Prům. závažnost" value={selected.avg_severity?.toFixed(1) || '—'} />
                     <StatBox label="Tier" value={`T${selected.tier}`} />
-                    <StatBox label="ICO" value={selected.ico || '—'} />
-                    {selected.parent_group && <StatBox label="Parent" value={selected.parent_group} />}
+                    <StatBox label="IČO" value={selected.ico || '—'} />
+                    {selected.parent_group && <StatBox label="Skupina" value={selected.parent_group} />}
                   </div>
                 </div>
               </div>
@@ -279,7 +279,7 @@ export default function Competitors() {
               <div className="w-20 h-20 rounded-full border-4 border-dashed border-slate-100 flex items-center justify-center">
                 <Info size={32} className="text-slate-100" />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em]">Select a competitor for details</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em]">Vyberte společnost pro detail</p>
             </div>
           )}
         </div>
@@ -287,17 +287,17 @@ export default function Competitors() {
         {/* Competitor table */}
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-900">All Competitors</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-900">Všechny společnosti</h3>
           </div>
           <table className="w-full text-[10px] text-left border-collapse">
             <thead>
               <tr className="text-slate-400 border-b border-slate-100 bg-slate-50/30">
-                <th className="px-6 py-3 font-black uppercase tracking-widest">Name</th>
-                <th className="px-6 py-3 font-black uppercase tracking-widest">Parent</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest">Název</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest">Skupina</th>
                 <th className="px-6 py-3 font-black uppercase tracking-widest text-center">Tier</th>
-                <th className="px-6 py-3 font-black uppercase tracking-widest text-center">ICO</th>
-                <th className="px-6 py-3 font-black uppercase tracking-widest text-right">Signals</th>
-                <th className="px-6 py-3 font-black uppercase tracking-widest text-right">Avg Sev</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest text-center">IČO</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest text-right">Signály</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest text-right">Prům. záv.</th>
               </tr>
             </thead>
             <tbody>

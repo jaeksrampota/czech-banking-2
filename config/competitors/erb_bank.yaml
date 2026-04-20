@@ -1,0 +1,17 @@
+id: erb_bank
+name: ERB bank
+parent_group: null
+tier: 3
+sources:
+  ares_ico: '28428943'
+  website_urls:
+  - https://www.erbbank.cz/
+  news_search_name: ERB bank
+  news_rss: https://news.google.com/rss/search?q=ERB+bank&hl=cs&gl=CZ&ceid=CZ:cs
+monitoring:
+  priority: low
+aliases:
+- ERB bank
+- ERB
+segmenty:
+- ucty

@@ -30,8 +30,8 @@ export default function Status() {
 
   const header = (
     <PageHeader
-      title="Status"
-      subtitle="Collector health and run history"
+      title="Stav kolektorů"
+      subtitle="Zdraví jednotlivých kolektorů a historie běhů"
       loading={loading}
       lastUpdated={lastUpdated}
       onRefresh={refresh}
@@ -84,20 +84,20 @@ export default function Status() {
                 </div>
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400">Runs</div>
+                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400">Běhů</div>
                     <div className="text-sm font-black text-slate-900">{c.total}</div>
                   </div>
                   <div>
-                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400">Signals</div>
+                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400">Signálů</div>
                     <div className="text-sm font-black text-slate-900">{c.signals}</div>
                   </div>
                   <div>
-                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400">Failed</div>
+                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400">Chyb</div>
                     <div className="text-sm font-black text-red-600">{c.failed}</div>
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-[9px] font-bold text-slate-400">
-                  <Clock size={10} /> Last: {formatDateTime(c.lastRun)}
+                  <Clock size={10} /> Poslední běh: {formatDateTime(c.lastRun)}
                 </div>
               </div>
             );
@@ -105,7 +105,7 @@ export default function Status() {
         ) : (
           <div className="col-span-3 bg-white border border-slate-200 rounded-lg p-12 shadow-sm text-center">
             <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">
-              No collector runs yet — run <code className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">ci-monitor collect</code> first
+              Zatím žádné běhy — spusťte nejdřív <code className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">ci-monitor collect</code>
             </div>
           </div>
         )}
@@ -114,27 +114,27 @@ export default function Status() {
       {/* Run history table */}
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-900">Run History</h3>
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{runs.length} runs</span>
+          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-900">Historie běhů</h3>
+          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{runs.length} běhů</span>
         </div>
         <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
           <table className="w-full text-[10px] text-left border-collapse">
             <thead className="sticky top-0 bg-white z-10">
               <tr className="text-slate-400 border-b border-slate-100">
-                <th className="px-6 py-3 font-black uppercase tracking-widest">Collector</th>
-                <th className="px-6 py-3 font-black uppercase tracking-widest">Competitor</th>
-                <th className="px-6 py-3 font-black uppercase tracking-widest">Started</th>
-                <th className="px-6 py-3 font-black uppercase tracking-widest">Finished</th>
-                <th className="px-6 py-3 font-black uppercase tracking-widest text-center">Status</th>
-                <th className="px-6 py-3 font-black uppercase tracking-widest text-right">Signals</th>
-                <th className="px-6 py-3 font-black uppercase tracking-widest">Error</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest">Kolektor</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest">Společnost</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest">Začátek</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest">Konec</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest text-center">Stav</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest text-right">Signálů</th>
+                <th className="px-6 py-3 font-black uppercase tracking-widest">Chyba</th>
               </tr>
             </thead>
             <tbody>
               {runs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-[10px] font-black uppercase tracking-widest text-slate-300">
-                    No runs recorded
+                    Žádné záznamy
                   </td>
                 </tr>
               ) : (
@@ -143,7 +143,7 @@ export default function Status() {
                     <td className="px-6 py-3 font-bold text-slate-900">
                       {SOURCE_LABELS[run.collector_name] || run.collector_name}
                     </td>
-                    <td className="px-6 py-3 text-slate-600">{run.competitor_id || 'all'}</td>
+                    <td className="px-6 py-3 text-slate-600">{run.competitor_id || 'vše'}</td>
                     <td className="px-6 py-3 font-mono text-slate-500 whitespace-nowrap">{formatDateTime(run.started_at)}</td>
                     <td className="px-6 py-3 font-mono text-slate-500 whitespace-nowrap">{formatDateTime(run.finished_at)}</td>
                     <td className="px-6 py-3 text-center">

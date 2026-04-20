@@ -1,0 +1,16 @@
+id: oberbank
+name: Oberbank
+parent_group: Oberbank AG
+tier: 3
+sources:
+  website_urls:
+  - https://www.oberbank.cz/
+  news_search_name: Oberbank Česko
+  news_rss: https://news.google.com/rss/search?q=Oberbank+%C4%8Cesko&hl=cs&gl=CZ&ceid=CZ:cs
+monitoring:
+  priority: low
+aliases:
+- Oberbank
+segmenty:
+- ucty
+- hypoteky

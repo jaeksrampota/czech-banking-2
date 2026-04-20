@@ -75,29 +75,44 @@ def cli(ctx, config_dir, verbose):
 @cli.command("init-db")
 @click.pass_context
 def init_db(ctx):
-    """Initialize database and seed competitors from config."""
+    """Inicializuje databázi a načte segmenty i společnosti z configu."""
     config_dir = ctx.obj["config_dir"]
     db = _get_db(config_dir)
     db.initialize()
+    db.seed_segments(config_dir)
     db.seed_competitors(config_dir)
 
+    segmenty = db.get_segmenty()
+    linie = db.get_produktove_linie()
     competitors = db.get_competitors()
-    table = Table(title="Competitors Loaded")
-    table.add_column("ID", style="cyan")
-    table.add_column("Name", style="bold")
-    table.add_column("Tier")
-    table.add_column("IČO")
 
+    seg_table = Table(title="Segmenty")
+    seg_table.add_column("ID", style="cyan")
+    seg_table.add_column("Název", style="bold")
+    seg_table.add_column("Produktové linie", style="dim")
+    for s in segmenty:
+        linie_nazvy = [l["nazev"] for l in linie if l["segment_id"] == s["id"]]
+        seg_table.add_row(s["id"], s["nazev"], ", ".join(linie_nazvy))
+    console.print(seg_table)
+
+    comp_table = Table(title=f"Společnosti ({len(competitors)})")
+    comp_table.add_column("ID", style="cyan")
+    comp_table.add_column("Název", style="bold")
+    comp_table.add_column("Tier")
+    comp_table.add_column("IČO")
     for c in competitors:
-        table.add_row(c["id"], c["name"], str(c["tier"]), c.get("ico", "—"))
+        comp_table.add_row(c["id"], c["name"], str(c["tier"]), c.get("ico") or "—")
+    console.print(comp_table)
 
-    console.print(table)
-    console.print(f"[green]Database initialized with {len(competitors)} competitors.[/green]")
+    console.print(
+        f"[green]Databáze inicializována: {len(segmenty)} segmentů, "
+        f"{len(linie)} produktových linií, {len(competitors)} společností.[/green]"
+    )
     db.close()
 
 
 @cli.command()
-@click.option("--source", "-s", type=click.Choice(["ares", "jobs", "news", "all"]), default="all")
+@click.option("--source", "-s", type=click.Choice(["ares", "jobs", "news", "website", "all"]), default="all")
 @click.option("--competitor", "-c", default="all", help="Competitor ID or 'all'")
 @click.pass_context
 def collect(ctx, source, competitor):
@@ -123,6 +138,10 @@ def collect(ctx, source, competitor):
     if source in ("news", "all"):
         from src.collectors.news import NewsCollector
         collectors_to_run.append(NewsCollector(db, config_dir))
+
+    if source in ("website", "all"):
+        from src.collectors.website import WebsiteCollector
+        collectors_to_run.append(WebsiteCollector(db, config_dir))
 
     total_signals = 0
     for collector in collectors_to_run:
@@ -282,6 +301,43 @@ def export(ctx, output):
     from src.export import export_to_xlsx
     path = export_to_xlsx(db, output)
     console.print(f"[bold green]Exported to: {path}[/bold green]")
+    db.close()
+
+
+@cli.command()
+@click.option("--segment", "-s", default=None, help="Slug segmentu (ucty/hypoteky/investice), volitelné")
+@click.option("--since", default="30d", help="Časové okno (např. 30d, 90d)")
+@click.pass_context
+def articlize(ctx, segment, since):
+    """Převede existující news signály na články v redakční vrstvě (idempotentní)."""
+    config_dir = ctx.obj["config_dir"]
+    db = _get_db(config_dir)
+
+    since_iso = _parse_since(since)
+    segment_id = None
+    if segment:
+        seg = db.get_segment(segment)
+        if not seg:
+            console.print(f"[red]Segment '{segment}' nenalezen.[/red]")
+            db.close()
+            return
+        segment_id = seg["id"]
+
+    # Vezmi všechny news signály v okně
+    rows = db.get_signals(source="news", since=since_iso, limit=0)
+    created = 0
+    skipped = 0
+    for sig in rows:
+        ok = db.insert_clanek_from_signal(sig, segment_id=segment_id)
+        if ok:
+            created += 1
+        else:
+            skipped += 1
+
+    console.print(
+        f"[bold green]Vytvořeno {created} článků[/bold green], "
+        f"přeskočeno {skipped} (již existují).",
+    )
     db.close()
 
 
