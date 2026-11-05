@@ -1,0 +1,414 @@
+# FINeCIM (www.finecim.cz) taxonomy and mapping, captured from a logged-in session on 2026-11-05.
+# Numeric ids are FINeCIM's own. Segment slugs are the <slug> in /cz/domena/<slug>/.
+
+base_url: https://www.finecim.cz
+
+# Customer segments used by the "segment" filter (zakaznicky_segment on products)
+customer_segments:
+  1: FOP a firmy
+  6: Fyzické osoby
+
+segments:
+  ucty:
+    nazev: Účty
+    has_products: true
+    product_lines: {1: Běžné účty, 2: Debetní karty, 53: Mobilní aplikace}
+  sporeni:
+    nazev: Spoření
+    has_products: true
+    product_lines: {13: Spořicí účty, 14: Termínované vklady}
+  uvery:
+    nazev: Úvěry
+    has_products: true
+    product_lines: {27: Konsolidace, 29: Kontokorenty, 7: Kreditní karty, 28: Mikropůjčky, 23: Nákup na splátky, 3: Úvěry}
+  hypoteky:
+    nazev: Hypotéky
+    has_products: true
+    product_lines: {24: Americké hypotéky, 4: Hypotéky}
+  investice:
+    nazev: Investice
+    has_products: true
+    product_lines: {50: Investiční fondy, 49: Investiční platformy}
+  bankovni-trh:
+    nazev: Bankovní trh
+    has_products: false
+    product_lines: {24: Americké hypotéky, 1: Běžné účty, 2: Debetní karty, 4: Hypotéky, 50: Investiční fondy, 27: Konsolidace, 29: Kontokorenty, 7: Kreditní karty, 13: Spořicí účty, 14: Termínované vklady, 3: Úvěry}
+  fintech:
+    nazev: FinTech
+    has_products: false
+    product_lines: {24: Americké hypotéky, 1: Běžné účty, 2: Debetní karty, 4: Hypotéky, 50: Investiční fondy, 49: Investiční platformy, 23: Nákup na splátky, 48: Penzijní spoření, 13: Spořicí účty, 14: Termínované vklady, 3: Úvěry}
+  bankopojisteni:
+    nazev: Bankopojištění
+    has_products: true
+    product_lines: {60: Cestovní pojištění - dlouhodobé, 61: Cestovní pojištění - krátkodobé, 58: Pojištění schopnosti splácet ke kreditním kartám, 56: Pojištění schopnosti splácet k hypotékám, 57: Pojištění schopnosti splácet k půjčkám}
+  stavebni-sporitelny:
+    nazev: Stavební spořitelny
+    has_products: true
+    product_lines: {15: Překlenovací úvěry, 5: Stavební spoření, 16: Úvěry ze stavebního spoření}
+  penzijni-spolecnosti:
+    nazev: Penzijní společnosti
+    has_products: true
+    product_lines: {48: Penzijní spoření}
+
+# FINeCIM subject id -> competitor id in config/competitors/ (the 19 configured banks).
+# Unmapped subjects get an auto-created competitor "fc_<id>" (tier 3) on first use.
+subject_to_competitor:
+  71: air_bank
+  119: artesa
+  105: banka_creditas
+  11: ceska_sporitelna
+  1: citibank
+  2: csob
+  7: csob_postovni
+  78: erb_bank
+  73: fio_banka
+  77: jt_banka
+  6: komercni_banka
+  52: mbank
+  3: moneta
+  40: oberbank
+  267: partners_bank
+  8: raiffeisenbank
+  190: revolut_cz
+  120: trinity_bank
+  43: unicredit
+
+# Subjects as listed on each domain's /subjekty page (id: name). Ids 56 and 57 have an
+# empty name on the site. Kept here as a seed; sync_taxonomy() refreshes it from the site.
+subjects:
+  ucty:
+    351: Penta Bank
+    71: Air Bank
+    119: Artesa, spořitelní družstvo
+    105: Banka CREDITAS
+    56: ""
+    51: Banka CREDITAS - Divize Max
+    1: Citibank
+    247: ČBA
+    11: Česká spořitelna
+    231: ČNB
+    2: ČSOB
+    7: ČSOB Poštovní spořitelna
+    73: Fio banka
+    77: J&T Banka
+    6: Komerční banka
+    68: Market Vision - bankovní trh
+    78: ERB bank
+    3: MONETA Money Bank
+    8: Raiffeisenbank
+    43: UniCredit Bank
+    89: Zahraniční trhy
+    52: mBank
+    190: Revolut
+    40: Oberbank
+    267: Partners Banka
+    120: Trinity Bank
+    115: Volksbank Raiffeisenbank Nordoberpfalz
+  sporeni:
+    351: Penta Bank
+    71: Air Bank
+    119: Artesa, spořitelní družstvo
+    105: Banka CREDITAS
+    51: Banka CREDITAS - Divize Max
+    247: ČBA
+    11: Česká spořitelna
+    231: ČNB
+    2: ČSOB
+    7: ČSOB Poštovní spořitelna
+    73: Fio banka
+    77: J&T Banka
+    6: Komerční banka
+    68: Market Vision - bankovní trh
+    78: ERB bank
+    3: MONETA Money Bank
+    8: Raiffeisenbank
+    43: UniCredit Bank
+    89: Zahraniční trhy
+    265: Inbank
+    52: mBank
+    190: Revolut
+    40: Oberbank
+    267: Partners Banka
+    120: Trinity Bank
+    115: Volksbank Raiffeisenbank Nordoberpfalz
+    277: Všeobecná úverová banka
+  uvery:
+    351: Penta Bank
+    71: Air Bank
+    105: Banka CREDITAS
+    51: Banka CREDITAS - Divize Max
+    247: ČBA
+    37: Cofidis
+    11: Česká spořitelna
+    231: ČNB
+    86: AvaFin
+    2: ČSOB
+    7: ČSOB Poštovní spořitelna
+    73: Fio banka
+    77: J&T Banka
+    6: Komerční banka
+    68: Market Vision - bankovní trh
+    78: ERB bank
+    3: MONETA Money Bank
+    83: Essox
+    110: Express Cash
+    8: Raiffeisenbank
+    85: Ferratum Bank
+    43: UniCredit Bank
+    89: Zahraniční trhy
+    102: Zonky
+    108: Help Financial
+    42: Home Credit
+    265: Inbank
+    112: Kamali
+    94: Kredito24
+    52: mBank
+    190: Revolut
+    95: Netcredit
+    40: Oberbank
+    267: Partners Banka
+    101: Profi Credit
+    41: Provident
+    109: Smart půjčka
+    111: Tesco finanční služby
+    120: Trinity Bank
+    87: Via SMS
+    115: Volksbank Raiffeisenbank Nordoberpfalz
+    97: Zaimo
+    84: Zaplo Finance
+  hypoteky:
+    351: Penta Bank
+    71: Air Bank
+    105: Banka CREDITAS
+    247: ČBA
+    11: Česká spořitelna
+    231: ČNB
+    2: ČSOB
+    7: ČSOB Poštovní spořitelna
+    73: Fio banka
+    5: ČSOB Hypoteční banka
+    77: J&T Banka
+    6: Komerční banka
+    68: Market Vision - bankovní trh
+    3: MONETA Money Bank
+    8: Raiffeisenbank
+    238: Swiss Life Select
+    43: UniCredit Bank
+    89: Zahraniční trhy
+    52: mBank
+    190: Revolut
+    40: Oberbank
+    267: Partners Banka
+  investice:
+    352: Allianz Global Investors
+    281: ČSOB Asset Management
+    282: Erste Asset Management
+    285: J&T Investiční společnost
+    351: Penta Bank
+    286: Raiffeisen investiční společnost
+    71: Air Bank
+    121: AKRO investiční společnost
+    140: Akcenta
+    122: Amundi investiční společnost
+    105: Banka CREDITAS
+    56: ""
+    129: BNP Paribas
+    239: Broker Consulting
+    1: Citibank
+    118: Conseq Investment Management
+    247: ČBA
+    11: Česká spořitelna
+    231: ČNB
+    2: ČSOB
+    7: ČSOB Poštovní spořitelna
+    73: Fio banka
+    116: Generali Investments CEE
+    117: Goldman Sachs Asset Management
+    77: J&T Banka
+    244: Direct Fondee
+    6: Komerční banka
+    68: Market Vision - bankovní trh
+    142: CYRRUS
+    3: MONETA Money Bank
+    241: Partners
+    132: Partners investiční společnost
+    126: PROSPERITA investiční společnost a.s.
+    8: Raiffeisenbank
+    136: Saxo Bank
+    238: Swiss Life Select
+    43: UniCredit Bank
+    124: UNIQA investiční společnost
+    131: WOOD & Company investiční společnost, a.s.
+    89: Zahraniční trhy
+    102: Zonky
+    123: Avant
+    190: Revolut
+    137: XTB
+    272: REICO investiční společnost Erste Asset Management
+    133: Patria investiční společnost
+  bankovni-trh:
+    324: Bankovní identita
+    285: J&T Investiční společnost
+    351: Penta Bank
+    71: Air Bank
+    121: AKRO investiční společnost
+    122: Amundi investiční společnost
+    119: Artesa, spořitelní družstvo
+    105: Banka CREDITAS
+    56: ""
+    51: Banka CREDITAS - Divize Max
+    129: BNP Paribas
+    239: Broker Consulting
+    1: Citibank
+    118: Conseq Investment Management
+    247: ČBA
+    37: Cofidis
+    11: Česká spořitelna
+    231: ČNB
+    86: AvaFin
+    2: ČSOB
+    7: ČSOB Poštovní spořitelna
+    73: Fio banka
+    116: Generali Investments CEE
+    117: Goldman Sachs Asset Management
+    5: ČSOB Hypoteční banka
+    77: J&T Banka
+    6: Komerční banka
+    68: Market Vision - bankovní trh
+    78: ERB bank
+    142: CYRRUS
+    3: MONETA Money Bank
+    83: Essox
+    241: Partners
+    132: Partners investiční společnost
+    110: Express Cash
+    126: PROSPERITA investiční společnost a.s.
+    8: Raiffeisenbank
+    85: Ferratum Bank
+    136: Saxo Bank
+    238: Swiss Life Select
+    43: UniCredit Bank
+    124: UNIQA investiční společnost
+    131: WOOD & Company investiční společnost, a.s.
+    89: Zahraniční trhy
+    102: Zonky
+    108: Help Financial
+    42: Home Credit
+    265: Inbank
+    123: Avant
+    112: Kamali
+    94: Kredito24
+    52: mBank
+    190: Revolut
+    95: Netcredit
+    40: Oberbank
+    267: Partners Banka
+    101: Profi Credit
+    41: Provident
+    111: Tesco finanční služby
+    120: Trinity Bank
+    87: Via SMS
+    115: Volksbank Raiffeisenbank Nordoberpfalz
+    277: Všeobecná úverová banka
+    97: Zaimo
+    84: Zaplo Finance
+    133: Patria investiční společnost
+  fintech:
+    292: Advanto Group
+    330: Banking Circle
+    324: Bankovní identita
+    293: BudgetBakers
+    315: Citfin
+    322: Comgate
+    326: CRIF
+    313: Cvak Payment Solutions
+    312: Digitoo
+    295: Dotykačka ČR
+    328: FLOWPAY
+    342: FTMO
+    323: GIVT
+    317: GoPay Czech
+    316: IDEMIA Solutions Czech
+    357: NFCtron
+    308: PayCorp
+    311: Resistant AI
+    325: ROIER Invest
+    318: Shoptet
+    350: Swish
+    327: TRASK SOLUTIONS
+    349: Twint
+    335: Up Benefity
+    314: Wultra
+    185: Alipay
+    182: Apple Pay
+    204: bunq
+    199: ClearBank
+    215: Curve
+    148: Direct Fidoo
+    263: Fingood
+    222: FinTech
+    244: Direct Fondee
+    68: Market Vision - bankovní trh
+    181: Google Pay
+    252: INVESTOWN
+    150: Klarna
+    106: Twisto
+    225: Mintos
+    187: Monese
+    193: Monzo
+    189: N26
+    102: Zonky
+    176: PayPal
+    232: Portu
+    251: Qerko
+    190: Revolut
+    227: Robinhood
+    167: Roger
+    230: Skip Pay
+    164: Upvest
+    137: XTB
+    163: Bondster
+    177: Spendee
+    172: Dateio
+    175: Portmonka
+    234: Refinanso
+    174: SEJF
+    170: Tipli
+  bankopojisteni:
+    71: Air Bank
+    105: Banka CREDITAS
+    256: BNP Paribas Cardif Pojišťovna
+    247: ČBA
+    11: Česká spořitelna
+    231: ČNB
+    2: ČSOB
+    7: ČSOB Poštovní spořitelna
+    73: Fio banka
+    5: ČSOB Hypoteční banka
+    6: Komerční banka
+    68: Market Vision - bankovní trh
+    3: MONETA Money Bank
+    8: Raiffeisenbank
+    43: UniCredit Bank
+    42: Home Credit
+    52: mBank
+    267: Partners Banka
+    120: Trinity Bank
+    30: ČSOB Pojišťovna
+    23: Generali Česká pojišťovna
+    27: Kooperativa pojišťovna
+    26: Komerční pojišťovna
+    79: MetLife pojišťovna
+    28: UNIQA pojišťovna (UNIQA)
+  stavebni-sporitelny:
+    247: ČBA
+    231: ČNB
+    89: Zahraniční trhy
+    13: ČSOB Stavební spořitelna
+    14: Modrá pyramida
+    16: MONETA Stavební Spořitelna
+    12: Raiffeisen stavební spořitelna
+    15: Stavební spořitelna České spořitelny
+    57: ""
+    67: Market Vision - Trh stavebního spoření
+  penzijni-spolecnosti: {}

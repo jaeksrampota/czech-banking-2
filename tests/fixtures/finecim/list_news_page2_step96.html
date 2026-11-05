@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="cs"><!-- begin::Head --><head>
+    <title>    Zprávy
+ | FINeCIM</title>
+    <!--begin::Fonts -->
+    <!--end::Fonts -->
+    <!--begin::Page Vendors Styles(used by this page) -->
+    <!--end::Page Vendors Styles -->
+    <!--begin::Global Theme Styles(used by all pages) -->
+    <!--end::Global Theme Styles -->
+    <!--begin::Layout Skins(used by all pages) -->
+    <!--end::Layout Skins -->
+    <!-- begin::Global Config(global config for global JS sciprts) -->
+    <!-- end::Global Config -->
+    <!--begin::Global Theme Bundle(used by all pages) -->
+    <!--end::Global Theme Bundle -->
+    <!--begin::Page Vendors(used by this page) -->
+    <!--end::Page Vendors -->
+    <!--end::Page Scripts -->
+</head>
+<body class="kt-page--loading-enabled kt-page--loading kt-header--minimize-topbar kt-header-mobile--fixed kt-quick-panel--right kt-demo-panel--right kt-offcanvas-panel--right kt-subheader--enabled kt-subheader--transparent kt-page--loading">
+<div class="kt-grid kt-grid--hor kt-grid--root">
+    <div class="kt-grid__item kt-grid__item--fluid kt-grid kt-grid--ver kt-page">
+        <div class="kt-grid__item kt-grid__item--fluid kt-grid kt-grid--hor kt-wrapper" id="kt_wrapper">
+            <div class="flashes-container kt-section__content" id="snippet--flash">
+            </div>
+            <div class="kt-body kt-grid__item kt-grid__item--fluid kt-grid kt-grid--hor kt-grid--stretch" id="kt_body">
+                <div class="kt-content  kt-grid__item kt-grid__item--fluid kt-grid kt-grid--hor" id="kt_content">
+<div class="kt-subheader   kt-grid__item" id="kt_subheader">
+    <div class="kt-container kt-container--fluid">
+        <div class="kt-subheader__main">
+            <a href="/cz/" class="kt-subheader__breadcrumbs-home"><i class="flaticon2-shelter"></i></a>
+            <span class="kt-subheader__breadcrumbs-separator"></span>
+            <h3 class="kt-subheader__title">Účty</h3>
+            <div class="kt-subheader__breadcrumbs">
+            </div>
+        </div>
+        <div class="kt-subheader__toolbar">
+            <div class="kt-subheader__wrapper"></div>
+        </div>
+    </div>
+</div>
+<div class="kt-container kt-container--fluid filter-panel">
+    <div class="ecim-filters">
+<div class="ecim-filters__filter ecim-filters__filter--range-datepicker">
+    <div class="form-group">
+        <div class="ecim-filters__range-datepicker input-daterange input-group">
+            <input type="text" class="form-control" name="start" placeholder="od" value="">
+            <div class="input-group-append">
+                <span class="input-group-text"><i class="la la-ellipsis-h"></i></span>
+            </div>
+            <input type="text" class="form-control" name="end" placeholder="do" value="">
+        </div>
+        <input type="hidden" class="filter-values filter-values-from" value="" data-sub="from" data-type="106">
+        <input type="hidden" class="filter-values filter-values-to" value="" data-sub="to" data-type="106">
+    </div>
+</div>
+<div class="ecim-filters__filter ecim-filters__filter--selectpicker">
+    <div id="segmentSectionFilter" class="form-group">
+        <select class="ecim-filters__selectpicker form-control" title="segment" multiple="">
+            <option value="1">FOP a firmy</option>
+            <option value="6">Fyzické osoby</option>
+        </select>
+        <input type="hidden" class="filter-values" value="" data-type="102">
+    </div>
+</div>
+<div class="ecim-filters__filter ecim-filters__filter--selectpicker">
+    <div id="subjectSectionFilter" class="form-group">
+        <select class="ecim-filters__selectpicker form-control" title="společnost" multiple="">
+            <option value="71">
+                                    Air Bank
+            </option>
+            <option value="119">
+                                    Artesa, spořitelní družstvo
+            </option>
+            <option value="105">
+                                    Banka CREDITAS
+            </option>
+            <option value="51">
+                                    Banka CREDITAS - Divize Max
+            </option>
+            <option value="56">
+                                    Bankovní trh
+            </option>
+            <option value="1">
+                                    Citibank
+            </option>
+            <option value="247">
+                                    ČBA
+            </option>
+            <option value="11">
+                                    Česká spořitelna
+            </option>
+            <option value="231">
+                                    ČNB
+            </option>
+            <option value="2">
+                                    ČSOB
+            </option>
+            <option value="7">
+                                    ČSOB Poštovní spořitelna
+            </option>
+            <option value="78">
+                                    ERB bank
+            </option>
+            <option value="73">
+                                    Fio banka
+            </option>
+            <option value="77">
+                                    J&amp;T Banka
+            </option>
+            <option value="6">
+                                    Komerční banka
+            </option>
+            <option value="68">
+                                    Market Vision - bankovní trh
+            </option>
+            <option value="3">
+                                    MONETA Money Bank
+            </option>
+            <option value="52">
+                                    mBank
+            </option>
+            <option value="40">
+                                    Oberbank
+            </option>
+            <option value="267">
+                                    Partners Banka
+            </option>
+            <option value="351">
+                                    Penta Bank
+            </option>
+            <option value="8">
+                                    Raiffeisenbank
+            </option>
+            <option value="190">
+                                    Revolut
+            </option>
+            <option value="120">
+                                    Trinity Bank
+            </option>
+            <option value="43">
+                                    UniCredit Bank
+            </option>
+            <option value="115">
+                                    Volksbank Raiffeisenbank Nordoberpfalz
+            </option>
+            <option value="89">
+                                    Zahraniční trhy
+            </option>
+        </select>
+        <input type="hidden" class="filter-values" value="" data-type="103">
+    </div>
+</div>
+<div class="ecim-filters__filter ecim-filters__filter--selectpicker">
+    <div id="productLineSectionFilter" class="form-group">
+        <select class="ecim-filters__selectpicker form-control" title="produktová linie" multiple="">
+            <option value="1">Běžné účty</option>
+            <option value="2">Debetní karty</option>
+            <option value="53">Mobilní aplikace</option>
+        </select>
+        <input type="hidden" class="filter-values" value="" data-type="104">
+    </div>
+</div>
+<div class="ecim-filters__filter ecim-filters__filter--selectpicker">
+    <div id="newsTypeSectionFilter" class="form-group">
+        <select class="ecim-filters__selectpicker form-control" title="typ zprávy" multiple="">
+            <option value="11">analýzy a vývoj trhu</option>
+            <option value="13">EN summary</option>
+            <option value="5">hospodářské výsledky</option>
+            <option value="15">legislativa a regulace</option>
+            <option value="28">makroekonomické analýzy a ukazatele</option>
+            <option value="8">obecné zprávy</option>
+            <option value="4">personální změny a HR</option>
+            <option value="1">produkty a služby</option>
+            <option value="27">recenze</option>
+            <option value="2">reklama a PR</option>
+            <option value="3">rozhovory</option>
+            <option value="7">strategie a spolupráce</option>
+            <option value="26">tiskové zprávy</option>
+        </select>
+        <input type="hidden" class="filter-values" value="" data-type="107">
+    </div>
+</div>
+        <div class="ecim-filters__filter ecim-filters__filter--actions">
+            <a class="ajax" href="/cz/domena/ucty/news?page=2&amp;step=96&amp;do=filters-reset">
+                <button type="reset" class="btn btn-secondary">Reset</button>
+            </a>
+            <a id="filter">
+                <button class="btn btn-brand">Filtruj</button>
+            </a>
+        </div>
+    </div>
+</div>
+    <div class="ecim-articles-list-page kt-container kt-container--fluid kt-grid__item kt-grid__item--fluid">
+        <!--Begin::Row-->
+        <div class="row" id="snippet--listingItems">
+            <div class="col-xxl-4 col-xl-6 col-lg-6 col-md-6">
+                <div class="ecim-widget-article kt-portlet kt-portlet--height-fluid">
+                    <div class="kt-portlet__body">
+                        <div class="ecim-widget-article__head">
+                            <div class="ecim-widget-article__image">
+                                <img class="ecim-widget-article__img" src="/media/image/default/57853?width=60&amp;height=38" alt="Téměř čtvrtina Čechů v zahraničí prodělá na DCC. Více než třetina přitom netuší, co to je">
+                            </div>
+                            <div class="ecim-widget-article__info">
+                                <h3 class="ecim-widget-article__title">
+                                    <a href="/cz/domena/ucty/news/43194">Téměř čtvrtina Čechů v zahraničí prodělá na DCC. Více než třetina přitom netuší, co to je</a>
+                                </h3>
+                                <ul class="ecim-widget-article__badges">
+                                </ul>
+                                <p class="ecim-widget-article__date">02.09.2026</p>
+                            </div><!-- /info -->
+                        </div><!-- /ecim-widget-article__head -->
+                        <div class="ecim-widget-article__body">
+                            <p class="ecim-widget-article__body___annotation">Podle průzkumu mBank Češi nejméně znají rizika quishingu, který nezná 35 % Čechů a dynamické konverze měny, kterou nezná 37 % Čechů, přestože se s nimi na cestách setkávají nejčastěji. S kapesní krádeží se setkalo 17 % Čechů, se skimmingem 8 % a s falešným QR kódem 7 %.</p>
+                        </div>
+                    </div><!-- /body -->
+                    <div class="kt-portlet__foot">
+                        <ul class="ecim-widget-article__tags">
+                                <li class="ecim-widget-article__tag">
+                                    <a class="btn btn-outline-brand btn-elevate btn-elevate-air tag" data-color="" href="/cz/tags/detail/939">
+                                        průzkum trhu
+                                    </a>
+                                </li>
+                                <li class="ecim-widget-article__tag">
+                                    <a class="btn btn-outline-brand btn-elevate btn-elevate-air tag" data-color="#18bce0" style="color:#18bce0;border-color:#18bce0;" href="/cz/tags/detail/762">
+                                        Tisková zpráva mBank
+                                    </a>
+                                </li>
+                        </ul>
+                    </div><!-- /foot -->
+                </div>
+            </div>
+            <div class="col-xxl-4 col-xl-6 col-lg-6 col-md-6">
+                <div class="ecim-widget-article kt-portlet kt-portlet--height-fluid">
+                    <div class="kt-portlet__body">
+                        <div class="ecim-widget-article__head">
+                            <div class="ecim-widget-article__image">
+                                <img class="ecim-widget-article__img" src="/media/image/default/32051?width=60&amp;height=38" alt="Fio banka představila nový design platební karty Mastercard Business World">
+                            </div>
+                            <div class="ecim-widget-article__info">
+                                <h3 class="ecim-widget-article__title">
+                                    <a href="/cz/domena/ucty/news/43179">Fio banka představila nový design platební karty Mastercard Business World</a>
+                                </h3>
+                                <ul class="ecim-widget-article__badges">
+                                </ul>
+                                <p class="ecim-widget-article__date">02.09.2026</p>
+                            </div><!-- /info -->
+                        </div><!-- /ecim-widget-article__head -->
+                        <div class="ecim-widget-article__body">
+                            <p class="ecim-widget-article__body___annotation">Fio banka představila nový design platební karty Mastercard Business World.</p>
+                        </div>
+                    </div><!-- /body -->
+                    <div class="kt-portlet__foot">
+                        <ul class="ecim-widget-article__tags">
+                                <li class="ecim-widget-article__tag">
+                                    <a class="btn btn-outline-brand btn-elevate btn-elevate-air tag" data-color="" href="/cz/tags/detail/99">
+                                        mobilní bankovnictví
+                                    </a>
+                                </li>
+                                <li class="ecim-widget-article__tag">
+                                    <a class="btn btn-outline-brand btn-elevate btn-elevate-air tag" data-color="#18bce0" style="color:#18bce0;border-color:#18bce0;" href="/cz/tags/detail/722">
+                                        Market Vision
+                                    </a>
+                                </li>
+                        </ul>
+                    </div><!-- /foot -->
+                </div>
+            </div>
+        </div><!-- /row -->
+        <!--End::Row-->
+<div class="row">
+    <div class="col-xl-12">
+        <div class="kt-portlet">
+            <div class="kt-portlet__body">
+                <div class="kt-pagination kt-pagination--brand">
+                    <ul class="kt-pagination__links">
+                        <!-- << -->
+                        <li class="kt-pagination__link--first">
+                            <a href="/cz/domena/ucty/news?step=96"><i class="fa fa-angle-double-left kt-font-brand"></i></a>
+                        </li>
+                        <!-- < -->
+                        <li class="kt-pagination__link--next">
+                            <a href="/cz/domena/ucty/news?step=96"><i class="fa fa-angle-left kt-font-brand"></i></a>
+                        </li>
+                        <!-- ... -->
+                            <li>
+                                <a class="" style="" href="/cz/domena/ucty/news?step=96">
+                                    1
+                                </a>
+                            </li>
+                            <li>
+                                <a class="kt-pagination__link--active" style="pointer-events: none;cursor: default;text-decoration: none;" href="/cz/domena/ucty/news?step=96&amp;page=2">
+                                    2
+                                </a>
+                            </li>
+                            <li>
+                                <a class="" style="" href="/cz/domena/ucty/news?step=96&amp;page=3">
+                                    3
+                                </a>
+                            </li>
+                            <li>
+                                <a class="" style="" href="/cz/domena/ucty/news?step=96&amp;page=4">
+                                    4
+                                </a>
+                            </li>
+                            <li>
+                                <a class="" style="" href="/cz/domena/ucty/news?step=96&amp;page=5">
+                                    5
+                                </a>
+                            </li>
+                            <li>
+                                <a class="" style="" href="/cz/domena/ucty/news?step=96&amp;page=6">
+                                    6
+                                </a>
+                            </li>
+                        <!-- ... -->
+                        <li>
+                            <a href="/cz/domena/ucty/news?step=96&amp;page=7">...</a>
+                        </li>
+                        <!-- > -->
+                        <li class="kt-pagination__link--prev">
+                            <a href="/cz/domena/ucty/news?step=96&amp;page=3"><i class="fa fa-angle-right kt-font-brand"></i></a>
+                        </li>
+                        <!-- >> -->
+                        <li class="kt-pagination__link--last">
+                            <a href="/cz/domena/ucty/news?step=96&amp;page=50"><i class="fa fa-angle-double-right kt-font-brand"></i></a>
+                        </li>
+                    </ul>
+                    <div class="m-datatable__pager-info">
+                        <div class="btn-group bootstrap-select m-datatable__pager-size" style="width: 70px;">
+                            <button type="button" class="btn dropdown-toggle btn-default" data-toggle="dropdown">
+                                <span class="filter-option pull-left">
+                                    96
+                                </span>
+                                <span class="bs-caret">
+                                    <span class="caret"></span>
+                                </span>
+                            </button>
+                            <div class="dropdown-menu open" x-placement="top-start" style="max-height: 682.797px; overflow: hidden; min-height: 14px; position: absolute; transform: translate3d(0px, -221px, 0px); top: 0px; left: 0px; will-change: transform;">
+                                <ul class="dropdown-menu inner" aria-expanded="false" style="max-height: 668.797px; overflow-y: auto; min-height: 0px;">
+                                        <li data-original-index="12">
+                                            <a href="/cz/domena/ucty/news?step=12&amp;page=2">
+                                                <span class="text">
+                                                    12
+                                                </span>
+                                            </a>
+                                        </li>
+                                        <li data-original-index="24">
+                                            <a href="/cz/domena/ucty/news?step=24&amp;page=2">
+                                                <span class="text">
+                                                    24
+                                                </span>
+                                            </a>
+                                        </li>
+                                        <li data-original-index="48">
+                                            <a href="/cz/domena/ucty/news?step=48&amp;page=2">
+                                                <span class="text">
+                                                    48
+                                                </span>
+                                            </a>
+                                        </li>
+                                        <li data-original-index="96" class="selected">
+                                            <a href="/cz/domena/ucty/news?step=96&amp;page=2">
+                                                <span class="text">
+                                                    96
+                                                </span>
+                                                <span class="glyphicon glyphicon-ok check-mark"></span>
+                                            </a>
+                                        </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <span class="m-datatable__pager-detail">
+                            Zobrazeno 97 - 192 z 4722
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body></html>
