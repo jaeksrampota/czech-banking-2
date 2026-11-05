@@ -4,9 +4,9 @@ parent_group: Société Générale
 tier: 1
 sources:
   ares_ico: '45317054'
-  careers_url: https://www.kb.cz/cs/o-bance/kariera
+  careers_url: https://kariera.kb.cz/
   careers_search_name: Komerční banka
-  pricing_url: https://www.kb.cz/cs/sazebniky
+  pricing_url: https://www.kb.cz/cs/ceny-a-sazby
   website_urls:
   - https://www.kb.cz/cs/obcane
   news_search_name: Komerční banka

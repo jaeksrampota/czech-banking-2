@@ -3,10 +3,10 @@ name: Trinity Bank
 parent_group: null
 tier: 2
 sources:
-  ares_ico: '47115378'
-  careers_url: https://www.trinitybank.cz/o-bance/kariera
+  ares_ico: '25307835'
+  careers_url: https://www.trinitybank.cz/kariera/
   careers_search_name: Trinity Bank
-  pricing_url: https://www.trinitybank.cz/dokumenty
+  pricing_url: https://www.trinitybank.cz/ke-stazeni/
   website_urls:
   - https://www.trinitybank.cz/
   news_search_name: Trinity Bank

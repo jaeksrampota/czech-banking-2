@@ -3,6 +3,7 @@ name: Oberbank
 parent_group: Oberbank AG
 tier: 3
 sources:
+  careers_url: https://www.oberbank.cz/kariera
   website_urls:
   - https://www.oberbank.cz/
   news_search_name: Oberbank Česko

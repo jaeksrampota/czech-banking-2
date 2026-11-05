@@ -8,7 +8,7 @@ sources:
   careers_search_name: mBank
   pricing_url: https://www.mbank.cz/informace-k-produktum/sazebnik/
   website_urls:
-  - https://www.mbank.cz/
+  - https://www.mbank.cz/osobni/
   news_search_name: mBank
   news_rss: https://news.google.com/rss/search?q=mBank+%C4%8Cesko&hl=cs&gl=CZ&ceid=CZ:cs
 monitoring:

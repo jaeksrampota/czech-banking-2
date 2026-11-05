@@ -91,7 +91,7 @@ def init_db(ctx):
     seg_table.add_column("Název", style="bold")
     seg_table.add_column("Produktové linie", style="dim")
     for s in segmenty:
-        linie_nazvy = [l["nazev"] for l in linie if l["segment_id"] == s["id"]]
+        linie_nazvy = [linie_row["nazev"] for linie_row in linie if linie_row["segment_id"] == s["id"]]
         seg_table.add_row(s["id"], s["nazev"], ", ".join(linie_nazvy))
     console.print(seg_table)
 

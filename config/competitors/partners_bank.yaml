@@ -1,11 +1,14 @@
 id: partners_bank
-name: Partners Bank
+name: Partners Banka
 parent_group: Partners Financial Services
 tier: 3
 sources:
-  ares_ico: '14893649'
+  ares_ico: '09727094'
+  careers_url: https://www.partnersbanka.cz/kariera
+  careers_search_name: Partners Banka
+  pricing_url: https://www.partnersbanka.cz/cenik-a-urokove-sazby
   website_urls:
-  - https://www.partnersbank.cz/
+  - https://www.partnersbanka.cz/
   news_search_name: Partners Bank
   news_rss: https://news.google.com/rss/search?q=Partners+Bank+%C4%8Cesko&hl=cs&gl=CZ&ceid=CZ:cs
 monitoring:

@@ -6,7 +6,7 @@ sources:
   website_urls:
   - https://www.artesa.cz/
   news_search_name: Artesa spořitelní družstvo
-  news_rss: https://news.google.com/rss/search?q=Artesa+spo%C5%99itelní+dru%C5%BEstvo&hl=cs&gl=CZ&ceid=CZ:cs
+  news_rss: https://news.google.com/rss/search?q=Artesa+spo%C5%99iteln%C3%AD+dru%C5%BEstvo&hl=cs&gl=CZ&ceid=CZ:cs
 monitoring:
   priority: low
 aliases:

@@ -4,11 +4,11 @@ parent_group: RBI
 tier: 2
 sources:
   ares_ico: '49240901'
-  careers_url: https://www.rb.cz/o-nas/kariera
+  careers_url: https://rb.jobs.cz/
   careers_search_name: Raiffeisenbank
-  pricing_url: https://www.rb.cz/sazebnik
+  pricing_url: https://www.rb.cz/osobni/ceniky
   website_urls:
-  - https://www.rb.cz/osobni
+  - https://www.rb.cz/
   news_search_name: Raiffeisenbank
   news_rss: https://news.google.com/rss/search?q=Raiffeisenbank+%C4%8Cesko&hl=cs&gl=CZ&ceid=CZ:cs
 monitoring:

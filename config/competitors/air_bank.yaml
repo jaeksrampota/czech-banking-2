@@ -4,9 +4,9 @@ parent_group: PPF Group
 tier: 2
 sources:
   ares_ico: '29045371'
-  careers_url: https://www.airbank.cz/kariera/
+  careers_url: https://kariera.airbank.cz/
   careers_search_name: Air Bank
-  pricing_url: https://www.airbank.cz/sazebnik/
+  pricing_url: https://www.airbank.cz/dokumenty-ke-stazeni/
   website_urls:
   - https://www.airbank.cz/
   news_search_name: Air Bank
