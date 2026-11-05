@@ -109,7 +109,9 @@ def create_app(db_path: str | None = None) -> Flask:
             segmenty = db.get_segmenty()
             linie = db.get_produktove_linie()
             for s in segmenty:
-                s["produktove_linie"] = [l for l in linie if l["segment_id"] == s["id"]]
+                s["produktove_linie"] = [
+                    linie_row for linie_row in linie if linie_row["segment_id"] == s["id"]
+                ]
             return jsonify(segmenty)
         finally:
             db.close()
