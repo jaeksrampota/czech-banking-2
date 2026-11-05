@@ -2,6 +2,8 @@ id: moneta
 name: Moneta Money Bank
 parent_group: null
 tier: 2
+# moneta.cz answers HTTP 403 to non-browser clients (bot protection, verified 2026-11-05); the website
+# collector will log fetch failures until a headless browser is used.
 sources:
   ares_ico: '25672720'
   careers_url: https://www.moneta.cz/kariera

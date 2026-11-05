@@ -2,10 +2,10 @@ id: erb_bank
 name: ERB bank
 parent_group: null
 tier: 3
+# 2026-11-05: ARES lists it as "ERB bank, a.s., v likvidaci" (in liquidation) and erbbank.cz no longer
+# resolves, so website_urls was removed.
 sources:
   ares_ico: '28428943'
-  website_urls:
-  - https://www.erbbank.cz/
   news_search_name: ERB bank
   news_rss: https://news.google.com/rss/search?q=ERB+bank&hl=cs&gl=CZ&ceid=CZ:cs
 monitoring:

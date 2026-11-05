@@ -22,7 +22,7 @@ industry_feeds:
     priority: high
 
   - name: "E15.cz"
-    url: "https://www.e15.cz/?format=feed&type=rss"
+    url: "https://www.e15.cz/rss"
     category: business
     priority: high
 

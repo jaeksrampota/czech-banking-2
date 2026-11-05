@@ -2,6 +2,8 @@ id: revolut_cz
 name: Revolut
 parent_group: Revolut Ltd
 tier: 3
+# revolut.com answers HTTP 403 to non-browser clients (bot protection, verified 2026-11-05); the website
+# collector will log fetch failures until a headless browser is used.
 sources:
   website_urls:
   - https://www.revolut.com/cs-CZ/

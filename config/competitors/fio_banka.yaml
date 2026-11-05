@@ -4,9 +4,9 @@ parent_group: null
 tier: 2
 sources:
   ares_ico: '61858374'
-  careers_url: https://www.fio.cz/o-nas/kariera
+  careers_url: https://fio.jobs.cz/
   careers_search_name: Fio banka
-  pricing_url: https://www.fio.cz/bankovni-sluzby/sazebnik
+  pricing_url: https://www.fio.cz/o-nas/dokumenty-ceniky/ceniky-sazebniky
   website_urls:
   - https://www.fio.cz/
   news_search_name: Fio banka

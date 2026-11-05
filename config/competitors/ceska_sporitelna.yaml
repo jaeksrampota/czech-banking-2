@@ -10,9 +10,9 @@ aliases:
 - Erste
 sources:
   ares_ico: '45244782'
-  careers_url: https://www.csas.cz/cs/karierni-prilezitosti
+  careers_url: https://kariera.csas.cz/
   careers_search_name: Česká spořitelna
-  pricing_url: https://www.csas.cz/cs/osobni-finance/sazebnik
+  pricing_url: https://www.csas.cz/cs/osobni-finance/cenik
   website_urls:
   - https://www.csas.cz/cs/osobni-finance
   news_search_name: Česká spořitelna

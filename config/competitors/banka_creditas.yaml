@@ -2,6 +2,8 @@ id: banka_creditas
 name: Banka CREDITAS
 parent_group: CREDITAS
 tier: 2
+# creditas.cz answers HTTP 403 to non-browser clients (bot protection, verified 2026-11-05); the website
+# collector will log fetch failures until a headless browser is used.
 sources:
   ares_ico: '63492555'
   careers_url: https://www.creditas.cz/kariera
