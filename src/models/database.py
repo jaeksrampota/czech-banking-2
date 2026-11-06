@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -115,6 +116,10 @@ class Database:
 
     def _table_columns(self, table: str) -> list[str]:
         return [r["name"] for r in self.conn.execute(f"PRAGMA table_info({table})").fetchall()]
+
+    def has_table(self, table: str) -> bool:
+        """True when ``table`` exists (a database created before a schema addition may lack it)."""
+        return bool(self._table_columns(table))
 
     def _ensure_extra_columns(self) -> None:
         for table, column, decl in _EXTRA_COLUMNS:
@@ -673,8 +678,57 @@ class Database:
             return self._upsert_row("mystery_shopping", row)
 
     def upsert_produkt(self, row: dict) -> bool:
+        """Upsert a product; when ``row`` carries ``atributy`` and they differ from the last
+        stored version, a new row is added to ``produkty_verze`` (the digest diffs them)."""
         with self.conn:
-            return self._upsert_row("produkty", row)
+            inserted = self._upsert_row("produkty", row)
+            if "atributy" in row:
+                self._record_produkt_verze(row["id"], row.get("atributy"), row.get("aktualizace"))
+            return inserted
+
+    @staticmethod
+    def produkt_atributy_hash(atributy) -> str:
+        """Stable hash of product parameters (order of keys and whitespace do not matter)."""
+        canonical = json.dumps(atributy or [], ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha1(canonical.encode("utf-8")).hexdigest()
+
+    def _record_produkt_verze(self, produkt_id: str, atributy, aktualizace: str | None) -> bool:
+        """Append a version of the product parameters unless the latest one is identical
+        (call inside a transaction). Returns True when a version was written."""
+        if not self._table_columns("produkty_verze"):
+            return False
+        content_hash = self.produkt_atributy_hash(atributy)
+        latest = self.conn.execute(
+            "SELECT content_hash FROM produkty_verze WHERE produkt_id = ? ORDER BY id DESC LIMIT 1",
+            (produkt_id,),
+        ).fetchone()
+        if latest and latest["content_hash"] == content_hash:
+            return False
+        self.conn.execute(
+            """INSERT INTO produkty_verze (produkt_id, atributy, content_hash, aktualizace, zachyceno_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (produkt_id, _db_value(atributy if atributy is not None else []), content_hash,
+             aktualizace, _utc_now_iso()),
+        )
+        return True
+
+    def get_produkt_verze(self, produkt_id: str) -> list[dict]:
+        """Stored parameter versions of a product, oldest first, ``atributy`` parsed from JSON.
+        An empty list when none is stored (or the table does not exist yet)."""
+        if not self._table_columns("produkty_verze"):
+            return []
+        rows = self.conn.execute(
+            "SELECT * FROM produkty_verze WHERE produkt_id = ? ORDER BY id", (produkt_id,)
+        ).fetchall()
+        result = []
+        for r in rows:
+            entry = dict(r)
+            try:
+                entry["atributy"] = json.loads(entry["atributy"]) if entry.get("atributy") else []
+            except (json.JSONDecodeError, TypeError):
+                entry["atributy"] = []
+            result.append(entry)
+        return result
 
     def upsert_executive_summary(self, row: dict, polozky: list[dict]) -> bool:
         """Upsert a monthly summary and replace its entries (``executive_summary_polozky``).

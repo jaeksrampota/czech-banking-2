@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import Overview from './pages/Overview';
 import Monitor from './pages/Monitor';
 import Competitors from './pages/Competitors';
+import Digest from './pages/Digest';
 import Status from './pages/Status';
 import type { Page } from './types';
 
@@ -14,6 +15,7 @@ export default function App() {
       {page === 'overview' && <Overview />}
       {page === 'monitor' && <Monitor />}
       {page === 'competitors' && <Competitors />}
+      {page === 'digest' && <Digest />}
       {page === 'status' && <Status />}
     </Layout>
   );

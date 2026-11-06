@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Radio,
   Building2,
+  Newspaper,
   Activity,
   ChevronLeft,
   ChevronRight,
@@ -20,6 +21,7 @@ const NAV_ITEMS: { page: Page; label: string; icon: typeof LayoutDashboard }[] =
   { page: 'overview', label: 'Přehled', icon: LayoutDashboard },
   { page: 'monitor', label: 'Monitor', icon: Radio },
   { page: 'competitors', label: 'Společnosti', icon: Building2 },
+  { page: 'digest', label: 'Digest', icon: Newspaper },
   { page: 'status', label: 'Stav', icon: Activity },
 ];
 

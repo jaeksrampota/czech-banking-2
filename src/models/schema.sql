@@ -276,3 +276,18 @@ CREATE TABLE IF NOT EXISTS finecim_sync (
     note TEXT,
     PRIMARY KEY (entity, segment_id)
 );
+
+-- ── Digest (src/digest; viz finecim-research/DIGEST.md) ──────────
+-- Verze parametrů produktu: Database.upsert_produkt() uloží novou verzi, kdykoli se
+-- změní produkty.atributy. Digest z ní počítá rozdíl proti předchozí verzi.
+
+CREATE TABLE IF NOT EXISTS produkty_verze (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    produkt_id TEXT NOT NULL REFERENCES produkty(id),
+    atributy TEXT,                                   -- JSON [{section, name, value}]
+    content_hash TEXT NOT NULL,
+    aktualizace TEXT,                                -- FINeCIM "Datum aktualizace" této verze
+    zachyceno_at TEXT NOT NULL                       -- kdy scraper verzi uložil
+);
+
+CREATE INDEX IF NOT EXISTS idx_produkty_verze_produkt ON produkty_verze(produkt_id, id);

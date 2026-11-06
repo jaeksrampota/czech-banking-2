@@ -309,6 +309,54 @@ def export(ctx, output):
 
 
 @cli.command()
+@click.option("--period", "-p", type=click.Choice(["weekly", "monthly"]), default="weekly", show_default=True,
+              help="Délka období: weekly = 7 dní, monthly = 1 měsíc; obojí končí dnem --until.")
+@click.option("--until", default=None, metavar="YYYY-MM-DD",
+              help="Poslední den období (výchozí dnes).")
+@click.option("--segment", "-s", "segments", multiple=True, metavar="SLUG",
+              help="Slug segmentu (opakovatelné; výchozí všechny).")
+@click.option("--format", "-f", "fmt", type=click.Choice(["md", "html", "both"]), default="md",
+              show_default=True, help="Výstupní formát.")
+@click.option("--output", "-o", "output_dir", default=None, metavar="DIR",
+              help="Adresář pro výstup (výchozí data/digests).")
+@click.pass_context
+def digest(ctx, period, until, segments, fmt, output_dir):
+    """Vygeneruje digest konkurence (Markdown/HTML) za týden nebo měsíc končící --until.
+
+    Čte články, kampaně, produkty, mystery shopping a executive summary ze stažených
+    FINeCIM tabulek; společnosti řadí podle tieru. Viz finecim-research/DIGEST.md."""
+    from src.digest import build_digest, compute_period, write_digest
+
+    config_dir = ctx.obj["config_dir"]
+    try:
+        per = compute_period(period, until)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    db = _get_db(config_dir)
+    try:
+        db.initialize()
+        data = build_digest(db, per, list(segments) or None)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    finally:
+        db.close()
+
+    out_dir = Path(output_dir) if output_dir else PROJECT_ROOT / "data" / "digests"
+    paths = write_digest(data, out_dir, (fmt,))
+    s = data["souhrn"]
+    console.print(
+        f"{data['period']['nazev']} {data['period']['popis']}: {s['spolecnosti']} společností, "
+        f"{s['clanky']} článků, {s['kampane']} kampaní, {s['produkty']} produktů, "
+        f"{s['mystery_shopping']} mystery shopping, {s['executive_summary']} executive summary, "
+        f"{s['trh']} zpráv z trhu.",
+        markup=False, highlight=False, soft_wrap=True,
+    )
+    for path in paths:
+        console.print(f"  {path}", markup=False, highlight=False, soft_wrap=True)
+
+
+@cli.command()
 @click.option("--segment", "-s", default=None, help="Slug segmentu (ucty/hypoteky/investice), volitelné")
 @click.option("--since", default="30d", help="Časové okno (např. 30d, 90d)")
 @click.pass_context
@@ -434,6 +482,7 @@ _FINECIM_TABLES = (
     ("kampane_kreativy", "Kreativy kampaní"),
     ("mystery_shopping", "Mystery shopping"),
     ("produkty", "Produkty"),
+    ("produkty_verze", "Verze parametrů produktů"),
     ("executive_summary", "Executive summary"),
     ("executive_summary_polozky", "Položky executive summary"),
     ("finecim_prilohy", "Přílohy"),
