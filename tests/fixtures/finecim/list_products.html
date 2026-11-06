@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="cs"><!-- begin::Head --><head>
+    <title>    Produkt
+ | FINeCIM</title>
+    <!--begin::Fonts -->
+    <!--end::Fonts -->
+    <!--begin::Page Vendors Styles(used by this page) -->
+    <!--end::Page Vendors Styles -->
+    <!--begin::Global Theme Styles(used by all pages) -->
+    <!--end::Global Theme Styles -->
+    <!--begin::Layout Skins(used by all pages) -->
+    <!--end::Layout Skins -->
+    <!-- begin::Global Config(global config for global JS sciprts) -->
+    <!-- end::Global Config -->
+    <!--begin::Global Theme Bundle(used by all pages) -->
+    <!--end::Global Theme Bundle -->
+    <!--begin::Page Vendors(used by this page) -->
+    <!--end::Page Vendors -->
+    <!--end::Page Scripts -->
+</head>
+<body class="kt-page--loading-enabled kt-page--loading kt-header--minimize-topbar kt-header-mobile--fixed kt-quick-panel--right kt-demo-panel--right kt-offcanvas-panel--right kt-subheader--enabled kt-subheader--transparent kt-page--loading">
+<div class="kt-grid kt-grid--hor kt-grid--root">
+    <div class="kt-grid__item kt-grid__item--fluid kt-grid kt-grid--ver kt-page">
+        <div class="kt-grid__item kt-grid__item--fluid kt-grid kt-grid--hor kt-wrapper" id="kt_wrapper">
+            <div class="flashes-container kt-section__content" id="snippet--flash">
+            </div>
+            <div class="kt-body kt-grid__item kt-grid__item--fluid kt-grid kt-grid--hor kt-grid--stretch" id="kt_body">
+                <div class="kt-content  kt-grid__item kt-grid__item--fluid kt-grid kt-grid--hor" id="kt_content">
+<div class="kt-subheader   kt-grid__item" id="kt_subheader">
+    <div class="kt-container kt-container--fluid">
+        <div class="kt-subheader__main">
+            <a href="/cz/" class="kt-subheader__breadcrumbs-home"><i class="flaticon2-shelter"></i></a>
+            <span class="kt-subheader__breadcrumbs-separator"></span>
+            <h3 class="kt-subheader__title">Účty</h3>
+            <div class="kt-subheader__breadcrumbs">
+            </div>
+        </div>
+        <div class="kt-subheader__toolbar">
+            <div class="kt-subheader__wrapper"></div>
+        </div>
+    </div>
+</div>
+<div class="kt-container kt-container--fluid filter-panel">
+    <div class="ecim-filters">
+<div class="ecim-filters__filter ecim-filters__filter--range-datepicker">
+    <div class="form-group">
+        <div class="ecim-filters__range-datepicker input-daterange input-group">
+            <input type="text" class="form-control" name="start" placeholder="od" value="">
+            <div class="input-group-append">
+                <span class="input-group-text"><i class="la la-ellipsis-h"></i></span>
+            </div>
+            <input type="text" class="form-control" name="end" placeholder="do" value="">
+        </div>
+        <input type="hidden" class="filter-values filter-values-from" value="" data-sub="from" data-type="106">
+        <input type="hidden" class="filter-values filter-values-to" value="" data-sub="to" data-type="106">
+    </div>
+</div>
+<div class="ecim-filters__filter ecim-filters__filter--selectpicker">
+    <div id="segmentSectionFilter" class="form-group">
+        <select class="ecim-filters__selectpicker form-control" title="segment" multiple="">
+            <option value="1">FOP a firmy</option>
+            <option value="6">Fyzické osoby</option>
+        </select>
+        <input type="hidden" class="filter-values" value="" data-type="102">
+    </div>
+</div>
+<div class="ecim-filters__filter ecim-filters__filter--selectpicker">
+    <div id="subjectSectionFilter" class="form-group">
+        <select class="ecim-filters__selectpicker form-control" title="společnost" multiple="">
+            <option value="71">
+                                    Air Bank
+            </option>
+            <option value="105">
+                                    Banka CREDITAS
+            </option>
+            <option value="51">
+                                    Banka CREDITAS - Divize Max
+            </option>
+            <option value="11">
+                                    Česká spořitelna
+            </option>
+            <option value="2">
+                                    ČSOB
+            </option>
+            <option value="7">
+                                    ČSOB Poštovní spořitelna
+            </option>
+            <option value="73">
+                                    Fio banka
+            </option>
+            <option value="77">
+                                    J&amp;T Banka
+            </option>
+            <option value="6">
+                                    Komerční banka
+            </option>
+            <option value="3">
+                                    MONETA Money Bank
+            </option>
+            <option value="52">
+                                    mBank
+            </option>
+            <option value="40">
+                                    Oberbank
+            </option>
+            <option value="267">
+                                    Partners Banka
+            </option>
+            <option value="8">
+                                    Raiffeisenbank
+            </option>
+            <option value="190">
+                                    Revolut
+            </option>
+            <option value="120">
+                                    Trinity Bank
+            </option>
+            <option value="43">
+                                    UniCredit Bank
+            </option>
+        </select>
+        <input type="hidden" class="filter-values" value="" data-type="103">
+    </div>
+</div>
+<div class="ecim-filters__filter ecim-filters__filter--selectpicker">
+    <div id="productLineSectionFilter" class="form-group">
+        <select class="ecim-filters__selectpicker form-control" title="produktová linie" multiple="">
+            <option value="1">Běžné účty</option>
+            <option value="2">Debetní karty</option>
+            <option value="53">Mobilní aplikace</option>
+        </select>
+        <input type="hidden" class="filter-values" value="" data-type="104">
+    </div>
+</div>
+        <div class="ecim-filters__filter ecim-filters__filter--actions">
+            <a class="ajax" href="/cz/domena/ucty/produkty?do=filters-reset">
+                <button type="reset" class="btn btn-secondary">Reset</button>
+            </a>
+            <a id="filter">
+                <button class="btn btn-brand">Filtruj</button>
+            </a>
+        </div>
+    </div>
+</div>
+    <div class="ecim-products-list-page kt-container kt-container--fluid kt-grid__item kt-grid__item--fluid">
+        <!--Begin::Row-->
+        <div class="row" id="snippet--listing">
+            <div class="col-xxl-4 col-xl-6 col-lg-6 col-md-6">
+                <div class="ecim-widget-product kt-portlet kt-portlet--height-fluid">
+                    <div class="kt-portlet__body">
+                        <div class="ecim-widget-product__head">
+                            <div class="ecim-widget-product__image">
+                                <img class="ecim-widget-product__img" src="/media/image/default/51504?width=60&amp;height=38" alt="Smart Banking">
+                            </div>
+                            <div class="ecim-widget-product__info">
+                                <h3 class="ecim-widget-product__title">
+                                    <a href="/cz/domena/ucty/produkt/3936">Smart Banking</a>
+                                </h3>
+                                <div class="ecim-widget-product__categories">
+                                    <div class="ecim-widget-product__category">
+                                        <h4 class="ecim-widget-product__category-title">Produktová linie:</h4>
+                                        <p class="ecim-widget-product__category-description">
+                                                Mobilní aplikace
+                                        </p>
+                                    </div>
+                                    <div class="ecim-widget-product__category">
+                                        <h4 class="ecim-widget-product__category-title">Segment:</h4>
+                                        <p class="ecim-widget-product__category-description">
+                                                Fyzické&nbsp;osoby
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul class="ecim-widget-product__badges">
+                                </ul>
+                            </div><!-- /info -->
+                        </div><!-- /head -->
+                        <div class="ecim-widget-product__body">
+                            <p class="ecim-widget-product__body___annotation">UniCredit Bank pro své klienty nabízí mobilní aplikaci Smart Banking.</p>
+                        </div>
+                    </div><!-- /body -->
+                </div>
+            </div>
+            <div class="col-xxl-4 col-xl-6 col-lg-6 col-md-6">
+                <div class="ecim-widget-product kt-portlet kt-portlet--height-fluid">
+                    <div class="kt-portlet__body">
+                        <div class="ecim-widget-product__head">
+                            <div class="ecim-widget-product__image">
+                                <img class="ecim-widget-product__img" src="/media/image/default/51135?width=60&amp;height=38" alt="Raiffeisen bankovnictví">
+                            </div>
+                            <div class="ecim-widget-product__info">
+                                <h3 class="ecim-widget-product__title">
+                                    <a href="/cz/domena/ucty/produkt/3934">Raiffeisen bankovnictví</a>
+                                </h3>
+                                <div class="ecim-widget-product__categories">
+                                    <div class="ecim-widget-product__category">
+                                        <h4 class="ecim-widget-product__category-title">Produktová linie:</h4>
+                                        <p class="ecim-widget-product__category-description">
+                                                Mobilní aplikace
+                                        </p>
+                                    </div>
+                                    <div class="ecim-widget-product__category">
+                                        <h4 class="ecim-widget-product__category-title">Segment:</h4>
+                                        <p class="ecim-widget-product__category-description">
+                                                Fyzické&nbsp;osoby
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul class="ecim-widget-product__badges">
+                                </ul>
+                            </div><!-- /info -->
+                        </div><!-- /head -->
+                        <div class="ecim-widget-product__body">
+                            <p class="ecim-widget-product__body___annotation">Raiffeisenbank pro své klienty nabízí mobilní aplikaci Raiffeisen bankovnictví.</p>
+                        </div>
+                    </div><!-- /body -->
+                </div>
+            </div>
+            <div class="col-xxl-4 col-xl-6 col-lg-6 col-md-6">
+                <div class="ecim-widget-product kt-portlet kt-portlet--height-fluid">
+                    <div class="kt-portlet__body">
+                        <div class="ecim-widget-product__head">
+                            <div class="ecim-widget-product__image">
+                                <img class="ecim-widget-product__img" src="/media/image/default/48431?width=60&amp;height=38" alt="My Air">
+                            </div>
+                            <div class="ecim-widget-product__info">
+                                <h3 class="ecim-widget-product__title">
+                                    <a href="/cz/domena/ucty/produkt/3939">My Air</a>
+                                </h3>
+                                <div class="ecim-widget-product__categories">
+                                    <div class="ecim-widget-product__category">
+                                        <h4 class="ecim-widget-product__category-title">Produktová linie:</h4>
+                                        <p class="ecim-widget-product__category-description">
+                                                Mobilní aplikace
+                                        </p>
+                                    </div>
+                                    <div class="ecim-widget-product__category">
+                                        <h4 class="ecim-widget-product__category-title">Segment:</h4>
+                                        <p class="ecim-widget-product__category-description">
+                                                Fyzické&nbsp;osoby
+                                        </p>
+                                    </div>
+                                </div>
+                                <ul class="ecim-widget-product__badges">
+                                </ul>
+                            </div><!-- /info -->
+                        </div><!-- /head -->
+                        <div class="ecim-widget-product__body">
+                            <p class="ecim-widget-product__body___annotation">Air Bank pro své klienty nabízí mobilní aplikaci My Air.</p>
+                        </div>
+                    </div><!-- /body -->
+                </div>
+            </div>
+        </div><!-- /row -->
+        <!--End::Row-->
+<div class="row">
+    <div class="col-xl-12">
+        <div class="kt-portlet">
+            <div class="kt-portlet__body">
+                <div class="kt-pagination kt-pagination--brand">
+                    <ul class="kt-pagination__links">
+                        <!-- << -->
+                        <!-- < -->
+                        <!-- ... -->
+                            <li>
+                                <a class="kt-pagination__link--active" style="pointer-events: none;cursor: default;text-decoration: none;" href="/cz/domena/ucty/produkty?step=12">
+                                    1
+                                </a>
+                            </li>
+                            <li>
+                                <a class="" style="" href="/cz/domena/ucty/produkty?step=12&amp;page=2">
+                                    2
+                                </a>
+                            </li>
+                            <li>
+                                <a class="" style="" href="/cz/domena/ucty/produkty?step=12&amp;page=3">
+                                    3
+                                </a>
+                            </li>
+                            <li>
+                                <a class="" style="" href="/cz/domena/ucty/produkty?step=12&amp;page=4">
+                                    4
+                                </a>
+                            </li>
+                            <li>
+                                <a class="" style="" href="/cz/domena/ucty/produkty?step=12&amp;page=5">
+                                    5
+                                </a>
+                            </li>
+                            <li>
+                                <a class="" style="" href="/cz/domena/ucty/produkty?step=12&amp;page=6">
+                                    6
+                                </a>
+                            </li>
+                        <!-- ... -->
+                        <li>
+                            <a href="/cz/domena/ucty/produkty?step=12&amp;page=7">...</a>
+                        </li>
+                        <!-- > -->
+                        <li class="kt-pagination__link--prev">
+                            <a href="/cz/domena/ucty/produkty?step=12&amp;page=2"><i class="fa fa-angle-right kt-font-brand"></i></a>
+                        </li>
+                        <!-- >> -->
+                        <li class="kt-pagination__link--last">
+                            <a href="/cz/domena/ucty/produkty?step=12&amp;page=17"><i class="fa fa-angle-double-right kt-font-brand"></i></a>
+                        </li>
+                    </ul>
+                    <div class="m-datatable__pager-info">
+                        <div class="btn-group bootstrap-select m-datatable__pager-size" style="width: 70px;">
+                            <button type="button" class="btn dropdown-toggle btn-default" data-toggle="dropdown">
+                                <span class="filter-option pull-left">
+                                    12
+                                </span>
+                                <span class="bs-caret">
+                                    <span class="caret"></span>
+                                </span>
+                            </button>
+                            <div class="dropdown-menu open" x-placement="top-start" style="max-height: 682.797px; overflow: hidden; min-height: 14px; position: absolute; transform: translate3d(0px, -221px, 0px); top: 0px; left: 0px; will-change: transform;">
+                                <ul class="dropdown-menu inner" aria-expanded="false" style="max-height: 668.797px; overflow-y: auto; min-height: 0px;">
+                                        <li data-original-index="12" class="selected">
+                                            <a href="/cz/domena/ucty/produkty?step=12">
+                                                <span class="text">
+                                                    12
+                                                </span>
+                                                <span class="glyphicon glyphicon-ok check-mark"></span>
+                                            </a>
+                                        </li>
+                                        <li data-original-index="24">
+                                            <a href="/cz/domena/ucty/produkty?step=24">
+                                                <span class="text">
+                                                    24
+                                                </span>
+                                            </a>
+                                        </li>
+                                        <li data-original-index="48">
+                                            <a href="/cz/domena/ucty/produkty?step=48">
+                                                <span class="text">
+                                                    48
+                                                </span>
+                                            </a>
+                                        </li>
+                                        <li data-original-index="96">
+                                            <a href="/cz/domena/ucty/produkty?step=96">
+                                                <span class="text">
+                                                    96
+                                                </span>
+                                            </a>
+                                        </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <span class="m-datatable__pager-detail">
+                            Zobrazeno 1 - 12 z 203
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body></html>

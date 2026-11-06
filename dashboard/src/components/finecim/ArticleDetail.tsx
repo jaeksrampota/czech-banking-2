@@ -35,6 +35,9 @@ export default function ArticleDetail({
   const spol = data?.competitor_id
     ? spolecnosti.find((c) => c.id === data.competitor_id)
     : undefined;
+  const otherSubjects = (data?.souvisejici_spolecnosti ?? []).filter(
+    (s) => !spol || s.competitor_id !== spol.id,
+  );
 
   return (
     <div className="space-y-4">
@@ -152,9 +155,16 @@ export default function ArticleDetail({
 
             {/* Body */}
             {data.telo && data.telo !== data.perex && (
-              <div className="px-6 py-5 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                {data.telo}
-              </div>
+              data.telo_format === 'html' ? (
+                <div
+                  className="px-6 py-5 text-sm text-slate-700 leading-relaxed space-y-3 [&_a]:underline [&_img]:max-w-full [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4"
+                  dangerouslySetInnerHTML={{ __html: data.telo }}
+                />
+              ) : (
+                <div className="px-6 py-5 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                  {data.telo}
+                </div>
+              )
             )}
 
             {/* Tagy */}
@@ -197,6 +207,35 @@ export default function ArticleDetail({
                 )}
               </ul>
             </div>
+
+            {otherSubjects.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-700">
+                    Další související společnosti
+                  </h3>
+                </div>
+                <ul className="divide-y divide-slate-50">
+                  {otherSubjects.map((s) => (
+                    <li key={s.subject_id}>
+                      {s.competitor_id ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenCompany(s.competitor_id!)}
+                          className="w-full px-5 py-2 text-left text-xs font-bold text-slate-900 hover:bg-slate-50"
+                        >
+                          {s.competitor_name || s.nazev}
+                        </button>
+                      ) : (
+                        <span className="block px-5 py-2 text-xs font-bold text-slate-500">
+                          {s.nazev || 'Subjekt ' + s.subject_id}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {spol && (
               <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">

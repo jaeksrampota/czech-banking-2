@@ -10,6 +10,7 @@ interface Props {
 }
 
 export default function ProductCard({ produkt, spolecnost, produktovaLinieNazev }: Props) {
+  const parametry = Object.entries(produkt.atributy_mapa ?? {});
   return (
     <article className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm hover:border-[#fee600] transition-colors flex flex-col">
       <div className="flex items-start justify-between mb-3 gap-2">
@@ -66,6 +67,19 @@ export default function ProductCard({ produkt, spolecnost, produktovaLinieNazev 
         <p className="text-xs text-slate-500 font-medium leading-relaxed line-clamp-3">
           {produkt.kratky_popis}
         </p>
+      )}
+      {parametry.length > 0 && (
+        <dl className="mt-3 pt-3 border-t border-slate-100 text-[10px] space-y-1">
+          {parametry.slice(0, 4).map(([name, value]) => (
+            <div key={name} className="flex gap-2">
+              <dt className="text-slate-400 font-bold">{name}:</dt>
+              <dd className="text-slate-700 font-bold truncate">{String(value ?? '—')}</dd>
+            </div>
+          ))}
+          {parametry.length > 4 && (
+            <div className="text-slate-300 font-bold">+ {parametry.length - 4} dalších parametrů</div>
+          )}
+        </dl>
       )}
     </article>
   );

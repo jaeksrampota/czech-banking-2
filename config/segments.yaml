@@ -1,39 +1,226 @@
+# Segmenty trhu a produktové linie, sladěné s doménami FINeCIM (/cz/domena/<finecim_slug>/).
+# finecim_id = id produktové linie na FINeCIM (viz config/finecim.yaml). Linie bez finecim_id
+# jsou vlastní (nemají protějšek v dané doméně FINeCIM).
 segmenty:
   - id: ucty
     slug: ucty
+    finecim_slug: ucty
     nazev: Účty
     poradi: 1
     ma_produkty: true
     produktove_linie:
       - slug: bezne_ucty
         nazev: Běžné účty
+        finecim_id: 1
       - slug: debetni_karty
         nazev: Debetní karty
+        finecim_id: 2
       - slug: mobilni_aplikace
         nazev: Mobilní aplikace
+        finecim_id: 53
 
   - id: hypoteky
     slug: hypoteky
+    finecim_slug: hypoteky
     nazev: Hypotéky
     poradi: 2
     ma_produkty: true
     produktove_linie:
       - slug: hypoteky
         nazev: Hypotéky
+        finecim_id: 4
       - slug: americke_hypoteky
         nazev: Americké hypotéky
+        finecim_id: 24
       - slug: pojisteni_schopnosti_splacet
         nazev: Pojištění schopnosti splácet
 
   - id: investice
     slug: investice
+    finecim_slug: investice
     nazev: Investice
     poradi: 3
     ma_produkty: true
     produktove_linie:
       - slug: investicni_fondy
         nazev: Investiční fondy
+        finecim_id: 50
       - slug: investicni_platformy
         nazev: Investiční platformy
+        finecim_id: 49
       - slug: penzijni_sporeni
         nazev: Penzijní spoření
+
+  - id: sporeni
+    slug: sporeni
+    finecim_slug: sporeni
+    nazev: Spoření
+    poradi: 4
+    ma_produkty: true
+    produktove_linie:
+      - slug: sporici_ucty
+        nazev: Spořicí účty
+        finecim_id: 13
+      - slug: terminovane_vklady
+        nazev: Termínované vklady
+        finecim_id: 14
+
+  - id: uvery
+    slug: uvery
+    finecim_slug: uvery
+    nazev: Úvěry
+    poradi: 5
+    ma_produkty: true
+    produktove_linie:
+      - slug: konsolidace
+        nazev: Konsolidace
+        finecim_id: 27
+      - slug: kontokorenty
+        nazev: Kontokorenty
+        finecim_id: 29
+      - slug: kreditni_karty
+        nazev: Kreditní karty
+        finecim_id: 7
+      - slug: mikropujcky
+        nazev: Mikropůjčky
+        finecim_id: 28
+      - slug: nakup_na_splatky
+        nazev: Nákup na splátky
+        finecim_id: 23
+      - slug: uvery
+        nazev: Úvěry
+        finecim_id: 3
+
+  - id: bankopojisteni
+    slug: bankopojisteni
+    finecim_slug: bankopojisteni
+    nazev: Bankopojištění
+    poradi: 6
+    ma_produkty: true
+    produktove_linie:
+      - slug: cestovni_pojisteni_dlouhodobe
+        nazev: Cestovní pojištění - dlouhodobé
+        finecim_id: 60
+      - slug: cestovni_pojisteni_kratkodobe
+        nazev: Cestovní pojištění - krátkodobé
+        finecim_id: 61
+      - slug: pojisteni_schopnosti_splacet_ke_kreditnim_kartam
+        nazev: Pojištění schopnosti splácet ke kreditním kartám
+        finecim_id: 58
+      - slug: pojisteni_schopnosti_splacet_k_hypotekam
+        nazev: Pojištění schopnosti splácet k hypotékám
+        finecim_id: 56
+      - slug: pojisteni_schopnosti_splacet_k_pujckam
+        nazev: Pojištění schopnosti splácet k půjčkám
+        finecim_id: 57
+
+  - id: stavebni-sporitelny
+    slug: stavebni-sporitelny
+    finecim_slug: stavebni-sporitelny
+    nazev: Stavební spořitelny
+    poradi: 7
+    ma_produkty: true
+    produktove_linie:
+      - slug: preklenovaci_uvery
+        nazev: Překlenovací úvěry
+        finecim_id: 15
+      - slug: stavebni_sporeni
+        nazev: Stavební spoření
+        finecim_id: 5
+      - slug: uvery_ze_stavebniho_sporeni
+        nazev: Úvěry ze stavebního spoření
+        finecim_id: 16
+
+  - id: penzijni-spolecnosti
+    slug: penzijni-spolecnosti
+    finecim_slug: penzijni-spolecnosti
+    nazev: Penzijní společnosti
+    poradi: 8
+    ma_produkty: true
+    produktove_linie:
+      - slug: penzijni_sporeni
+        nazev: Penzijní spoření
+        finecim_id: 48
+
+  # Domény bez záložky produktů; linie slouží jen jako filtr obsahu (zprávy, kampaně).
+  - id: bankovni-trh
+    slug: bankovni-trh
+    finecim_slug: bankovni-trh
+    nazev: Bankovní trh
+    poradi: 9
+    ma_produkty: false
+    produktove_linie:
+      - slug: americke_hypoteky
+        nazev: Americké hypotéky
+        finecim_id: 24
+      - slug: bezne_ucty
+        nazev: Běžné účty
+        finecim_id: 1
+      - slug: debetni_karty
+        nazev: Debetní karty
+        finecim_id: 2
+      - slug: hypoteky
+        nazev: Hypotéky
+        finecim_id: 4
+      - slug: investicni_fondy
+        nazev: Investiční fondy
+        finecim_id: 50
+      - slug: konsolidace
+        nazev: Konsolidace
+        finecim_id: 27
+      - slug: kontokorenty
+        nazev: Kontokorenty
+        finecim_id: 29
+      - slug: kreditni_karty
+        nazev: Kreditní karty
+        finecim_id: 7
+      - slug: sporici_ucty
+        nazev: Spořicí účty
+        finecim_id: 13
+      - slug: terminovane_vklady
+        nazev: Termínované vklady
+        finecim_id: 14
+      - slug: uvery
+        nazev: Úvěry
+        finecim_id: 3
+
+  - id: fintech
+    slug: fintech
+    finecim_slug: fintech
+    nazev: FinTech
+    poradi: 10
+    ma_produkty: false
+    produktove_linie:
+      - slug: americke_hypoteky
+        nazev: Americké hypotéky
+        finecim_id: 24
+      - slug: bezne_ucty
+        nazev: Běžné účty
+        finecim_id: 1
+      - slug: debetni_karty
+        nazev: Debetní karty
+        finecim_id: 2
+      - slug: hypoteky
+        nazev: Hypotéky
+        finecim_id: 4
+      - slug: investicni_fondy
+        nazev: Investiční fondy
+        finecim_id: 50
+      - slug: investicni_platformy
+        nazev: Investiční platformy
+        finecim_id: 49
+      - slug: nakup_na_splatky
+        nazev: Nákup na splátky
+        finecim_id: 23
+      - slug: penzijni_sporeni
+        nazev: Penzijní spoření
+        finecim_id: 48
+      - slug: sporici_ucty
+        nazev: Spořicí účty
+        finecim_id: 13
+      - slug: terminovane_vklady
+        nazev: Termínované vklady
+        finecim_id: 14
+      - slug: uvery
+        nazev: Úvěry
+        finecim_id: 3

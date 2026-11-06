@@ -176,6 +176,14 @@ export default function CompanyModal({ competitorId, onClose }: Props) {
                 <RelatedList title="Související kampaně" items={detail.kampane?.map((k) => ({ id: k.id, text: k.nazev, url: k.kreativa_url }))} />
                 <RelatedList title="Mystery Shopping" items={detail.mystery_shopping?.map((m) => ({ id: m.id, text: m.nazev, url: m.pdf_url }))} />
               </div>
+              {detail.prilohy && detail.prilohy.length > 0 && (
+                <div className="pt-4 border-t border-slate-100">
+                  <RelatedList
+                    title="Přílohy (výroční zprávy)"
+                    items={detail.prilohy.map((p) => ({ id: String(p.id), text: p.nazev || p.url, url: p.url }))}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

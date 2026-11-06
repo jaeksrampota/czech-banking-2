@@ -10,10 +10,8 @@ build/
 node_modules/
 dashboard/dist/
 
-# Data (regenerated at runtime)
-data/db/
-data/export/
-data/*.log
+# Data (regenerated at runtime; also holds the FINeCIM session cookies)
+data/
 
 # IDE / OS
 .vscode/
