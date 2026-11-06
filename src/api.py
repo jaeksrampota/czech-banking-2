@@ -7,9 +7,10 @@ import re
 from pathlib import Path
 
 from bs4 import BeautifulSoup, Comment, Tag
-from flask import Flask, abort, jsonify, request, send_from_directory
+from flask import Flask, Response, abort, jsonify, request, send_from_directory
 from flask_cors import CORS
 
+from src.digest import build_digest, compute_period, render_html, render_markdown
 from src.models.database import FINECIM_PLACEHOLDER_COMPETITOR, Database, load_subject_competitor_map
 
 logger = logging.getLogger(__name__)
@@ -23,10 +24,12 @@ AUTH_HEADER = "X-API-Key"
 # Tables reported by /api/finecim/status (FINeCIM-shaped content + scraper bookkeeping).
 FINECIM_STATUS_TABLES = (
     "segmenty", "produktove_linie", "finecim_subjekty", "finecim_subjekty_segmenty",
-    "clanky", "kampane", "kampane_kreativy", "mystery_shopping", "produkty",
+    "clanky", "kampane", "kampane_kreativy", "mystery_shopping", "produkty", "produkty_verze",
     "executive_summary", "executive_summary_polozky", "spolecnost_detail",
     "finecim_vazby", "finecim_prilohy", "finecim_sync",
 )
+
+DIGEST_FORMATS = ("json", "md", "html")
 
 # finecim_vazby.entity_type -> (table, ORDER BY clause, extra WHERE)
 _RELATED_ENTITY_TABLES = {
@@ -388,6 +391,31 @@ def create_app(db_path: str | None = None) -> Flask:
             })
         finally:
             db.close()
+
+    @app.route("/api/digest")
+    def api_digest():
+        """Digest konkurence za období: ?period=weekly|monthly&until=YYYY-MM-DD
+        [&segment=slug]... [&format=json|md|html] (the same content as ``ci-monitor digest``)."""
+        args = request.args
+        fmt = (args.get("format") or "json").lower()
+        if fmt not in DIGEST_FORMATS:
+            abort(400, description=f"Neznámý formát: {fmt!r} (podporováno: {', '.join(DIGEST_FORMATS)})")
+        try:
+            period = compute_period(args.get("period") or "weekly", args.get("until") or None)
+        except ValueError as exc:
+            abort(400, description=str(exc))
+        db = get_db()
+        try:
+            digest = build_digest(db, period, args.getlist("segment") or None)
+        except ValueError as exc:
+            abort(400, description=str(exc))
+        finally:
+            db.close()
+        if fmt == "md":
+            return Response(render_markdown(digest), mimetype="text/markdown")
+        if fmt == "html":
+            return Response(render_html(digest), mimetype="text/html")
+        return jsonify(digest)
 
     # ── Static file serving (production) ─────────────────────
 

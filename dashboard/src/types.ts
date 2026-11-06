@@ -229,7 +229,7 @@ export interface NovinkyResponse {
   signaly_fallback: Signal[];
 }
 
-export type Page = 'overview' | 'monitor' | 'competitors' | 'status';
+export type Page = 'overview' | 'monitor' | 'competitors' | 'digest' | 'status';
 
 export type MonitorTab =
   | 'novinky'
@@ -239,3 +239,159 @@ export type MonitorTab =
   | 'kampane'
   | 'mystery'
   | 'executive';
+
+// ── Digest (GET /api/digest; src/digest/build.py) ───────────
+
+export type DigestPeriodTyp = 'weekly' | 'monthly';
+
+export interface DigestPeriod {
+  typ: DigestPeriodTyp;
+  od: string;
+  do: string;
+  nazev: string;
+  popis: string;
+}
+
+export interface DigestSegmentRef {
+  id: string;
+  slug: string;
+  nazev: string;
+}
+
+export interface DigestSpolecnostRef {
+  id: string;
+  nazev: string;
+  tier: number | null;
+}
+
+export interface DigestZmena {
+  section: string | null;
+  name: string;
+  stara: string | null;
+  nova: string | null;
+  druh: 'zmena' | 'pridano' | 'odebrano';
+}
+
+export interface DigestParametr {
+  section: string | null;
+  name: string;
+  value: string | null;
+}
+
+export interface DigestProdukt {
+  id: string;
+  nazev: string;
+  url: string | null;
+  druh: 'novy' | 'zmena' | 'aktualizace';
+  segment: DigestSegmentRef | null;
+  produktova_linie: string | null;
+  zakaznicky_segment: string | null;
+  kratky_popis: string | null;
+  aktualizace: string | null;
+  pridano: string | null;
+  zmeny: DigestZmena[];
+  parametry: DigestParametr[];
+}
+
+export interface DigestKreativa {
+  id: string;
+  datum: string | null;
+  media_typ: string | null;
+  popis: string | null;
+  media_url: string | null;
+  media_druh: 'video' | 'image' | null;
+}
+
+export interface DigestKampan {
+  id: string;
+  nazev: string;
+  url: string | null;
+  druh: 'nova' | 'aktualizovana';
+  segment: DigestSegmentRef | null;
+  zacatek: string | null;
+  aktualizace: string | null;
+  popis: string | null;
+  media_typy: string[];
+  typy_kampane: string[];
+  kreativa_url: string | null;
+  prvni_kreativa: DigestKreativa | null;
+  pocet_kreativ: number;
+}
+
+export interface DigestZprava {
+  id: string;
+  nazev: string;
+  datum: string | null;
+  url: string | null;
+  perex: string | null;
+  typy_zpravy: string[];
+  tagy: string[];
+  stav: string | null;
+  segment: DigestSegmentRef | null;
+  spolecnost: DigestSpolecnostRef | null;
+}
+
+export interface DigestZpravySkupina {
+  typ: string;
+  polozky: DigestZprava[];
+}
+
+export interface DigestMystery {
+  id: string;
+  nazev: string;
+  datum: string | null;
+  popis: string | null;
+  pdf_url: string | null;
+  url: string | null;
+  segment: DigestSegmentRef | null;
+}
+
+export interface DigestPocty {
+  clanky: number;
+  kampane: number;
+  produkty: number;
+  mystery_shopping: number;
+}
+
+export interface DigestSpolecnost {
+  id: string;
+  nazev: string;
+  tier: number | null;
+  parent_group: string | null;
+  pocty: DigestPocty;
+  produkty: DigestProdukt[];
+  kampane: DigestKampan[];
+  zpravy: DigestZpravySkupina[];
+  mystery_shopping: DigestMystery[];
+}
+
+export interface DigestExecSummaryPolozka {
+  id: string;
+  nazev: string | null;
+  text: string | null;
+  url: string | null;
+  typ: string | null;
+  clanek_id: string | null;
+}
+
+export interface DigestExecSummary {
+  id: string;
+  rok: number;
+  mesic: number;
+  nazev: string;
+  pdf_url: string | null;
+  segment: DigestSegmentRef | null;
+  polozky: DigestExecSummaryPolozka[];
+}
+
+export interface Digest {
+  period: DigestPeriod;
+  segmenty: DigestSegmentRef[];
+  filtr_segmentu: string[];
+  vygenerovano: string;
+  prazdny: boolean;
+  souhrn: DigestPocty & { spolecnosti: number; executive_summary: number; trh: number };
+  spolecnosti: DigestSpolecnost[];
+  executive_summary: DigestExecSummary[];
+  trh: DigestZpravySkupina[];
+}

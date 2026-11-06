@@ -2,6 +2,7 @@ import type {
   Signal, Competitor, CollectorRun, Summary,
   Segment, Kampan, MysteryShop, ExecSummary, Analyza,
   Produkt, SpolecnostDetail, NovinkyResponse, ClanekDetail,
+  Digest, DigestPeriodTyp,
 } from './types';
 
 const BASE = '/api';
@@ -79,4 +80,27 @@ export const api = {
 
   getSpolecnostDetail: (id: string) =>
     get<SpolecnostDetail>(`${BASE}/spolecnost/${id}`),
+
+  // Digest konkurence za období (stejný obsah jako `ci-monitor digest`)
+  getDigest: (params: DigestParams) => get<Digest>(`${BASE}/digest`, digestQuery(params)),
 };
+
+export interface DigestParams {
+  period: DigestPeriodTyp;
+  until?: string;
+  segment?: string;
+}
+
+function digestQuery(params: DigestParams): Record<string, string | undefined> {
+  return { period: params.period, until: params.until, segment: params.segment };
+}
+
+/** URL pro stažení digestu jako Markdown nebo HTML. */
+export function digestDownloadUrl(params: DigestParams, format: 'md' | 'html'): string {
+  const url = new URL(`${BASE}/digest`, window.location.origin);
+  Object.entries(digestQuery(params)).forEach(([k, v]) => {
+    if (v) url.searchParams.set(k, v);
+  });
+  url.searchParams.set('format', format);
+  return url.toString();
+}
