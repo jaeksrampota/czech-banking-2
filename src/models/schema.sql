@@ -200,3 +200,77 @@ CREATE TABLE IF NOT EXISTS analyzy (
 );
 
 CREATE INDEX IF NOT EXISTS idx_analyzy_segment ON analyzy(segment_id);
+
+-- ── FINeCIM scraper (additivně; viz finecim-research/SCRAPER-DESIGN.md §4) ──
+-- Sloupce segmenty.finecim_slug, produktove_linie.finecim_id a produkty.aktualizace
+-- přidává idempotentně Database.initialize() (ALTER TABLE nelze podmínit v čistém SQL).
+
+CREATE TABLE IF NOT EXISTS finecim_subjekty (
+    subject_id INTEGER PRIMARY KEY,
+    nazev TEXT NOT NULL,
+    competitor_id TEXT REFERENCES competitors(id),
+    url TEXT,
+    logo_url TEXT,
+    aktualizace TEXT,
+    pridano_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS finecim_subjekty_segmenty (
+    subject_id INTEGER NOT NULL REFERENCES finecim_subjekty(subject_id),
+    segment_id TEXT NOT NULL REFERENCES segmenty(id),
+    PRIMARY KEY (subject_id, segment_id)
+);
+
+-- Každá související společnost položky
+CREATE TABLE IF NOT EXISTS finecim_vazby (
+    entity_type TEXT NOT NULL,                       -- clanek | kampan | mystery | produkt
+    entity_id TEXT NOT NULL,
+    subject_id INTEGER NOT NULL,
+    PRIMARY KEY (entity_type, entity_id, subject_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_finecim_vazby_subject ON finecim_vazby(subject_id);
+
+-- PDF / soubory připojené k položce nebo společnosti
+CREATE TABLE IF NOT EXISTS finecim_prilohy (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL,                       -- spolecnost | mystery | clanek
+    entity_id TEXT NOT NULL,
+    nazev TEXT,
+    url TEXT NOT NULL,
+    UNIQUE(entity_type, entity_id, url)
+);
+
+CREATE TABLE IF NOT EXISTS kampane_kreativy (
+    id TEXT PRIMARY KEY,                             -- fc-creative-<creativeId>
+    kampan_id TEXT NOT NULL REFERENCES kampane(id),
+    datum TEXT,
+    media_typ TEXT,
+    popis TEXT,
+    media_url TEXT,
+    media_druh TEXT                                  -- video | image | NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_kampane_kreativy_kampan ON kampane_kreativy(kampan_id);
+
+CREATE TABLE IF NOT EXISTS executive_summary_polozky (
+    id TEXT PRIMARY KEY,                             -- fc-es-entry-<entryId>
+    summary_id TEXT NOT NULL REFERENCES executive_summary(id),
+    clanek_id TEXT,                                  -- fc-news-<id> (nemusí být ještě stažen)
+    nazev TEXT,
+    text TEXT,
+    poradi INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_es_polozky_summary ON executive_summary_polozky(summary_id);
+
+CREATE TABLE IF NOT EXISTS finecim_sync (
+    entity TEXT NOT NULL,
+    segment_id TEXT NOT NULL,
+    last_run_at TEXT,
+    last_success_at TEXT,
+    last_page INTEGER,
+    newest_id INTEGER,
+    note TEXT,
+    PRIMARY KEY (entity, segment_id)
+);

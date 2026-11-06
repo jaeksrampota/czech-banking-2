@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight, FileText } from 'lucide-react';
-import { CZECH_MONTHS } from '../../utils';
+import { CZECH_MONTHS, cn } from '../../utils';
 import type { ExecSummary } from '../../types';
 import EmptyState from './EmptyState';
 
@@ -22,6 +22,8 @@ export default function ExecSummaryArchive({ items }: Props) {
   const [expandedYear, setExpandedYear] = useState<number | null>(
     byYear.length > 0 ? byYear[0][0] : null,
   );
+  const [openId, setOpenId] = useState<string | null>(null);
+  const openSummary = items.find((i) => i.id === openId);
 
   if (items.length === 0) {
     return (
@@ -53,7 +55,22 @@ export default function ExecSummaryArchive({ items }: Props) {
               <div className="border-t border-slate-100 p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {months
                   .sort((a, b) => a.mesic - b.mesic)
-                  .map((m) => (
+                  .map((m) => (m.polozky && m.polozky.length > 0 ? (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setOpenId(openId === m.id ? null : m.id)}
+                      className={cn(
+                        'px-4 py-3 border rounded hover:border-[#fee600] hover:bg-slate-50 transition-colors flex items-center justify-between',
+                        openId === m.id ? 'border-[#fee600]' : 'border-slate-200',
+                      )}
+                    >
+                      <span className="text-[11px] font-bold text-slate-700 capitalize">
+                        {CZECH_MONTHS[m.mesic - 1]}
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-300">{m.polozky.length}</span>
+                    </button>
+                  ) : (
                     <a
                       key={m.id}
                       href={m.pdf_url ?? '#'}
@@ -66,8 +83,29 @@ export default function ExecSummaryArchive({ items }: Props) {
                       </span>
                       {m.pdf_url && <FileText size={11} className="text-slate-300" />}
                     </a>
-                  ))}
+                  )))}
               </div>
+            )}
+            {open && openSummary && openSummary.rok === year && (
+              <ul className="border-t border-slate-100 px-6 py-4 space-y-3">
+                {openSummary.polozky?.map((p) => (
+                  <li key={p.id} className="text-xs text-slate-600 leading-relaxed">
+                    {p.clanek_url ? (
+                      <a
+                        href={p.clanek_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-black text-slate-900 hover:underline"
+                      >
+                        {p.nazev}
+                      </a>
+                    ) : (
+                      <span className="font-black text-slate-900">{p.nazev}</span>
+                    )}
+                    {p.text && <p className="mt-0.5">{p.text}</p>}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         );

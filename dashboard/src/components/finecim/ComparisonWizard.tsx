@@ -49,7 +49,7 @@ export default function ComparisonWizard({
   const allAttributes = useMemo(() => {
     const set = new Set<string>();
     for (const p of produkty.filter((p) => vybraneProdukty.has(p.id))) {
-      Object.keys(p.atributy || {}).forEach((k) => set.add(k));
+      Object.keys(attributeMap(p)).forEach((k) => set.add(k));
     }
     return [...set];
   }, [produkty, vybraneProdukty]);
@@ -239,7 +239,7 @@ export default function ComparisonWizard({
                         <td className="px-4 py-2 font-bold text-slate-500">{key}</td>
                         {vybranePole.map((p) => (
                           <td key={p.id} className="px-4 py-2 text-slate-700">
-                            {String((p.atributy as any)?.[key] ?? '—')}
+                            {String(attributeMap(p)[key] ?? '—')}
                           </td>
                         ))}
                       </tr>
@@ -320,4 +320,10 @@ function SecondaryButton({ children, onClick }: { children: React.ReactNode; onC
       {children}
     </button>
   );
+}
+
+/** Parametry produktu jako {název: hodnota} (FINeCIM ukládá seznam {section, name, value}). */
+function attributeMap(p: Produkt): Record<string, unknown> {
+  if (p.atributy_mapa) return p.atributy_mapa;
+  return Array.isArray(p.atributy) ? {} : (p.atributy || {});
 }

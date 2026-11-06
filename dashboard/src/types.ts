@@ -85,10 +85,37 @@ export interface Clanek {
   zdrojovy_signal_id: string | null;
   url: string | null;
   pridano_at: string;
+  typy_zpravy?: string[];
+  telo_format?: 'html' | 'text';
+  spolecnost_nazev?: string | null;
+  logo_url?: string | null;
+}
+
+export interface Priloha {
+  id: number;
+  nazev: string | null;
+  url: string;
+}
+
+export interface SouvisejiciSpolecnost {
+  subject_id: number;
+  nazev: string | null;
+  url: string | null;
+  competitor_id: string | null;
+  competitor_name: string | null;
 }
 
 export interface ClanekDetail extends Clanek {
   related: Clanek[];
+  finecim_url?: string | null;
+  souvisejici_spolecnosti?: SouvisejiciSpolecnost[];
+  prilohy?: Priloha[];
+}
+
+export interface ProduktAtribut {
+  section: string | null;
+  name: string;
+  value: string | null;
 }
 
 export interface Produkt {
@@ -99,7 +126,8 @@ export interface Produkt {
   zakaznicky_segment: string | null;
   nazev: string;
   kratky_popis: string | null;
-  atributy: Record<string, unknown>;
+  atributy: ProduktAtribut[] | Record<string, unknown>;
+  atributy_mapa?: Record<string, unknown>;
   url: string | null;
   aktivni: number;
   pridano_at: string;
@@ -118,6 +146,17 @@ export interface Kampan {
   typ_kampane: string | null;
   kreativa_url: string | null;
   pridano_at: string;
+  kreativy?: Kreativa[];
+}
+
+export interface Kreativa {
+  id: string;
+  kampan_id: string;
+  datum: string | null;
+  media_typ: string | null;
+  popis: string | null;
+  media_url: string | null;
+  media_druh: 'video' | 'image' | null;
 }
 
 export interface MysteryShop {
@@ -129,6 +168,16 @@ export interface MysteryShop {
   popis: string | null;
   pdf_url: string | null;
   pridano_at: string;
+  prilohy?: Priloha[];
+}
+
+export interface ExecSummaryPolozka {
+  id: string;
+  clanek_id: string | null;
+  nazev: string | null;
+  text: string | null;
+  poradi: number | null;
+  clanek_url: string | null;
 }
 
 export interface ExecSummary {
@@ -140,6 +189,7 @@ export interface ExecSummary {
   telo: string | null;
   pdf_url: string | null;
   pridano_at: string;
+  polozky?: ExecSummaryPolozka[];
 }
 
 export interface Analyza {
@@ -169,6 +219,9 @@ export interface SpolecnostDetail extends Competitor {
   kampane: Kampan[];
   mystery_shopping: MysteryShop[];
   produkty: Produkt[];
+  prilohy?: Priloha[];
+  finecim_subject_id?: number | null;
+  finecim_url?: string | null;
 }
 
 export interface NovinkyResponse {

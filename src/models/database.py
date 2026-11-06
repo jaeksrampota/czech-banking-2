@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sqlite3
@@ -13,9 +14,88 @@ def _utc_now_iso() -> str:
 logger = logging.getLogger(__name__)
 
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
+DEFAULT_CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"
+
+# Placeholder competitor for FINeCIM items without any related company (subject id 0).
+FINECIM_PLACEHOLDER_COMPETITOR = "__finecim__"
+
+# Columns added to pre-existing tables for FINeCIM (ALTER TABLE cannot be made idempotent
+# in plain SQL, so initialize() adds them when missing).
+_EXTRA_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("segmenty", "finecim_slug", "TEXT"),
+    ("produktove_linie", "finecim_id", "INTEGER"),
+    ("produkty", "aktualizace", "TEXT"),
+)
+
+# entity name -> (table, id prefix, SQL expression of the stored date)
+_FINECIM_ENTITY_TABLES: dict[str, tuple[str, str, str]] = {
+    "news": ("clanky", "fc-news-", "datum"),
+    "campaign": ("kampane", "fc-campaign-", "aktualizace"),
+    "mystery": ("mystery_shopping", "fc-ms-", "datum"),
+    "product": ("produkty", "fc-product-", "COALESCE(aktualizace, substr(pridano_at, 1, 10))"),
+    "summary": ("executive_summary", "fc-es-", "substr(pridano_at, 1, 10)"),
+}
+_FINECIM_ENTITY_ALIASES = {
+    "clanek": "news", "clanky": "news",
+    "kampan": "campaign", "kampane": "campaign",
+    "mystery-shopping": "mystery", "mystery_shopping": "mystery", "ms": "mystery",
+    "produkt": "product", "produkty": "product",
+    "executive-summary": "summary", "executive_summary": "summary", "es": "summary",
+    "subjekt": "company", "subject": "company", "spolecnost": "company",
+}
+
+_FINECIM_SYNC_FIELDS = ("last_run_at", "last_success_at", "last_page", "newest_id", "note")
+
+_subject_map_cache: dict[str, tuple[float, dict[int, str]]] = {}
+
+
+def load_subject_competitor_map(config_dir: str | os.PathLike | None = None) -> dict[int, str]:
+    """Return FINeCIM subject id -> competitor id from ``finecim.yaml`` (``subject_to_competitor``).
+
+    ``config_dir`` defaults to the repository's ``config`` directory. The result is cached
+    per file and refreshed when the file's mtime changes. A missing file yields ``{}``.
+    """
+    base = Path(config_dir) if config_dir is not None else DEFAULT_CONFIG_DIR
+    path = base / "finecim.yaml"
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return {}
+    key = str(path.resolve())
+    cached = _subject_map_cache.get(key)
+    if cached and cached[0] == mtime:
+        return dict(cached[1])
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    mapping = {
+        int(k): str(v)
+        for k, v in (data.get("subject_to_competitor") or {}).items()
+        if v
+    }
+    _subject_map_cache[key] = (mtime, mapping)
+    return dict(mapping)
+
+
+def _db_value(value):
+    """Serialise lists/dicts to JSON text and bools to ints for SQLite."""
+    if isinstance(value, tuple):
+        value = list(value)
+    if isinstance(value, (list, dict)):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, bool):
+        return int(value)
+    return value
+
+
+def _insert_sql(table: str, data: dict, verb: str = "INSERT") -> str:
+    names = ", ".join(data)
+    marks = ", ".join("?" for _ in data)
+    return f"{verb} INTO {table} ({names}) VALUES ({marks})"
 
 
 class Database:
+    # Config dir used to look up the FINeCIM subject -> competitor mapping; None = repo config.
+    finecim_config_dir: str | os.PathLike | None = None
+
     def __init__(self, db_path: str):
         self.db_path = db_path
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
@@ -27,8 +107,17 @@ class Database:
     def initialize(self):
         schema = SCHEMA_PATH.read_text(encoding="utf-8")
         self.conn.executescript(schema)
+        self._ensure_extra_columns()
         self.conn.commit()
         logger.info("Database initialized at %s", self.db_path)
+
+    def _table_columns(self, table: str) -> list[str]:
+        return [r["name"] for r in self.conn.execute(f"PRAGMA table_info({table})").fetchall()]
+
+    def _ensure_extra_columns(self) -> None:
+        for table, column, decl in _EXTRA_COLUMNS:
+            if column not in self._table_columns(table):
+                self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
     def close(self):
         self.conn.close()
@@ -75,38 +164,113 @@ class Database:
     # ── Segmenty ─────────────────────────────────────────────────
 
     def seed_segments(self, config_dir: str):
+        """Seed segmenty + produktove_linie from segments.yaml (idempotent).
+
+        Product lines are matched within their segment by id (``<segment>__<slug>``), then by
+        ``finecim_id``, then by name, so re-seeding never duplicates a line."""
         segments_path = Path(config_dir) / "segments.yaml"
         if not segments_path.exists():
             logger.warning("No segments.yaml at %s", segments_path)
             return
-        data = yaml.safe_load(segments_path.read_text(encoding="utf-8"))
+        data = yaml.safe_load(segments_path.read_text(encoding="utf-8")) or {}
+        has_finecim_slug = "finecim_slug" in self._table_columns("segmenty")
+        has_finecim_id = "finecim_id" in self._table_columns("produktove_linie")
         count_seg = 0
         count_lin = 0
-        for seg in data.get("segmenty", []):
-            self.conn.execute(
-                """INSERT INTO segmenty (id, slug, nazev, poradi, ma_produkty)
-                   VALUES (?, ?, ?, ?, ?)
-                   ON CONFLICT(id) DO UPDATE SET
-                     slug=excluded.slug,
-                     nazev=excluded.nazev,
-                     poradi=excluded.poradi,
-                     ma_produkty=excluded.ma_produkty""",
-                (seg["id"], seg["slug"], seg["nazev"],
-                 seg.get("poradi", 0), 1 if seg.get("ma_produkty", True) else 0),
-            )
-            count_seg += 1
-            for linie in seg.get("produktove_linie", []):
-                linie_id = f"{seg['id']}__{linie['slug']}"
+        for seg in data.get("segmenty") or []:
+            seg_id = seg["id"]
+            params = (seg_id, seg.get("slug", seg_id), seg["nazev"],
+                      seg.get("poradi", 0), 1 if seg.get("ma_produkty", True) else 0)
+            if has_finecim_slug:
                 self.conn.execute(
-                    """INSERT INTO produktove_linie (id, segment_id, slug, nazev)
-                       VALUES (?, ?, ?, ?)
+                    """INSERT INTO segmenty (id, slug, nazev, poradi, ma_produkty, finecim_slug)
+                       VALUES (?, ?, ?, ?, ?, ?)
                        ON CONFLICT(id) DO UPDATE SET
-                         nazev=excluded.nazev""",
-                    (linie_id, seg["id"], linie["slug"], linie["nazev"]),
+                         slug=excluded.slug,
+                         nazev=excluded.nazev,
+                         poradi=excluded.poradi,
+                         ma_produkty=excluded.ma_produkty,
+                         finecim_slug=excluded.finecim_slug""",
+                    (*params, seg.get("finecim_slug")),
                 )
+            else:
+                self.conn.execute(
+                    """INSERT INTO segmenty (id, slug, nazev, poradi, ma_produkty)
+                       VALUES (?, ?, ?, ?, ?)
+                       ON CONFLICT(id) DO UPDATE SET
+                         slug=excluded.slug,
+                         nazev=excluded.nazev,
+                         poradi=excluded.poradi,
+                         ma_produkty=excluded.ma_produkty""",
+                    params,
+                )
+            count_seg += 1
+            for linie in seg.get("produktove_linie") or []:
+                linie_id = f"{seg_id}__{linie['slug']}"
+                finecim_id = linie.get("finecim_id") if has_finecim_id else None
+                existing = self._find_produktova_linie(seg_id, linie_id, finecim_id, linie["nazev"])
+                if existing and has_finecim_id:
+                    self.conn.execute(
+                        """UPDATE produktove_linie
+                           SET nazev = ?, finecim_id = COALESCE(?, finecim_id)
+                           WHERE id = ?""",
+                        (linie["nazev"], finecim_id, existing),
+                    )
+                elif existing:
+                    self.conn.execute(
+                        "UPDATE produktove_linie SET nazev = ? WHERE id = ?",
+                        (linie["nazev"], existing),
+                    )
+                elif has_finecim_id:
+                    self.conn.execute(
+                        """INSERT INTO produktove_linie (id, segment_id, slug, nazev, finecim_id)
+                           VALUES (?, ?, ?, ?, ?)""",
+                        (linie_id, seg_id, linie["slug"], linie["nazev"], finecim_id),
+                    )
+                else:
+                    self.conn.execute(
+                        """INSERT INTO produktove_linie (id, segment_id, slug, nazev)
+                           VALUES (?, ?, ?, ?)""",
+                        (linie_id, seg_id, linie["slug"], linie["nazev"]),
+                    )
                 count_lin += 1
         self.conn.commit()
         logger.info("Seeded %d segmenty, %d produktove_linie", count_seg, count_lin)
+
+    def _find_produktova_linie(
+        self, segment_id: str, linie_id: str, finecim_id: int | None, nazev: str,
+    ) -> str | None:
+        """Existing product line in a segment: by id, then by finecim_id, then by name."""
+        row = self.conn.execute(
+            "SELECT id FROM produktove_linie WHERE id = ? AND segment_id = ?",
+            (linie_id, segment_id),
+        ).fetchone()
+        if row:
+            return row["id"]
+        return self.resolve_produktova_linie(segment_id, finecim_id=finecim_id, nazev=nazev)
+
+    def resolve_produktova_linie(
+        self, segment_id: str, finecim_id: int | None = None, nazev: str | None = None,
+    ) -> str | None:
+        """Return the produktove_linie id in a segment matching a FINeCIM product-line id or
+        a name (case-insensitive, surrounding whitespace ignored), else None."""
+        if finecim_id is not None and "finecim_id" in self._table_columns("produktove_linie"):
+            row = self.conn.execute(
+                "SELECT id FROM produktove_linie WHERE segment_id = ? AND finecim_id = ?",
+                (segment_id, int(finecim_id)),
+            ).fetchone()
+            if row:
+                return row["id"]
+        if nazev:
+            wanted = nazev.strip().casefold()
+            rows = self.conn.execute(
+                "SELECT id, nazev FROM produktove_linie WHERE segment_id = ? ORDER BY id",
+                (segment_id,),
+            ).fetchall()
+            for r in rows:
+                if (r["nazev"] or "").strip().casefold() == wanted:
+                    return r["id"]
+        return None
 
     def get_segmenty(self) -> list[dict]:
         rows = self.conn.execute(
@@ -361,6 +525,304 @@ class Database:
             "SELECT * FROM competitors WHERE id = ?", (competitor_id,)
         ).fetchone()
         return dict(row) if row else None
+
+    # ── FINeCIM: taxonomie ───────────────────────────────────────
+
+    def upsert_finecim_subject(
+        self, subject_id: int, name: str, competitor_id: str | None, url: str | None,
+        segment_ids: list[str], *, logo_url: str | None = None, aktualizace: str | None = None,
+    ) -> None:
+        """Insert/update a FINeCIM subject and add its segment memberships.
+
+        Existing memberships are kept and unknown segment ids are skipped. None never erases
+        a stored competitor_id/url/logo_url/aktualizace; an empty name keeps the stored one."""
+        with self.conn:
+            self.conn.execute(
+                """INSERT INTO finecim_subjekty
+                   (subject_id, nazev, competitor_id, url, logo_url, aktualizace, pridano_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(subject_id) DO UPDATE SET
+                     nazev = CASE WHEN excluded.nazev != '' THEN excluded.nazev ELSE nazev END,
+                     competitor_id = COALESCE(excluded.competitor_id, competitor_id),
+                     url = COALESCE(excluded.url, url),
+                     logo_url = COALESCE(excluded.logo_url, logo_url),
+                     aktualizace = COALESCE(excluded.aktualizace, aktualizace)""",
+                (int(subject_id), name or "", competitor_id, url, logo_url, aktualizace,
+                 _utc_now_iso()),
+            )
+            for seg_id in segment_ids or []:
+                self.conn.execute(
+                    """INSERT OR IGNORE INTO finecim_subjekty_segmenty (subject_id, segment_id)
+                       SELECT ?, id FROM segmenty WHERE id = ?""",
+                    (int(subject_id), seg_id),
+                )
+
+    def get_finecim_subject(self, subject_id: int) -> dict | None:
+        """Subject row plus ``segment_ids`` (sorted list of its segments)."""
+        row = self.conn.execute(
+            "SELECT * FROM finecim_subjekty WHERE subject_id = ?", (int(subject_id),)
+        ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        seg_rows = self.conn.execute(
+            """SELECT segment_id FROM finecim_subjekty_segmenty
+               WHERE subject_id = ? ORDER BY segment_id""",
+            (int(subject_id),),
+        ).fetchall()
+        result["segment_ids"] = [r["segment_id"] for r in seg_rows]
+        return result
+
+    def ensure_competitor_for_subject(self, subject_id: int, name: str) -> str:
+        """Return the competitor id for a FINeCIM subject, creating the competitor if needed.
+
+        Subject 0 maps to the placeholder ``__finecim__``. Otherwise the mapping in
+        ``finecim.yaml`` (``subject_to_competitor``, read from ``self.finecim_config_dir`` or
+        the repo config dir) wins, then a competitor already stored on the subject row, then
+        an auto-created ``fc_<id>`` competitor (tier 3). A mapped competitor that is not
+        seeded yet gets a tier-3 stub that ``seed_competitors`` later overwrites."""
+        subject_id = int(subject_id)
+        if subject_id == 0:
+            competitor_id = FINECIM_PLACEHOLDER_COMPETITOR
+        else:
+            competitor_id = load_subject_competitor_map(self.finecim_config_dir).get(subject_id)
+            if competitor_id is None:
+                row = self.conn.execute(
+                    "SELECT competitor_id FROM finecim_subjekty WHERE subject_id = ?", (subject_id,)
+                ).fetchone()
+                competitor_id = (row["competitor_id"] if row else None) or f"fc_{subject_id}"
+            elif not self.conn.execute(
+                "SELECT 1 FROM competitors WHERE id = ?", (competitor_id,)
+            ).fetchone():
+                logger.warning(
+                    "Competitor %s (FINeCIM subject %d) is not seeded; creating a stub",
+                    competitor_id, subject_id,
+                )
+        with self.conn:
+            self.conn.execute(
+                """INSERT OR IGNORE INTO competitors (id, name, parent_group, tier, ico, config_path)
+                   VALUES (?, ?, NULL, 3, NULL, NULL)""",
+                (competitor_id, (name or "").strip() or f"FINeCIM subjekt {subject_id}"),
+            )
+            if subject_id != 0:
+                self.conn.execute(
+                    """UPDATE finecim_subjekty SET competitor_id = ?
+                       WHERE subject_id = ? AND competitor_id IS NULL""",
+                    (competitor_id, subject_id),
+                )
+        return competitor_id
+
+    # ── FINeCIM: entity upserts ──────────────────────────────────
+
+    def _upsert_row(self, table: str, row: dict, key: str = "id") -> bool:
+        """Insert or update one row keyed by ``key`` (call inside a transaction).
+
+        Only keys that are columns of ``table`` are used (lists/dicts become JSON). On update
+        only the provided columns change and ``pridano_at`` is never touched; on insert
+        ``pridano_at`` defaults to now. Returns True on insert."""
+        columns = self._table_columns(table)
+        data = {k: _db_value(v) for k, v in row.items() if k in columns}
+        if data.get(key) is None:
+            raise ValueError(f"{table}: row is missing '{key}'")
+        exists = self.conn.execute(
+            f"SELECT 1 FROM {table} WHERE {key} = ?", (data[key],)
+        ).fetchone()
+        if exists:
+            updates = {k: v for k, v in data.items() if k not in (key, "pridano_at")}
+            if updates:
+                assignments = ", ".join(f"{k} = ?" for k in updates)
+                self.conn.execute(
+                    f"UPDATE {table} SET {assignments} WHERE {key} = ?",
+                    (*updates.values(), data[key]),
+                )
+            return False
+        if "pridano_at" in columns and not data.get("pridano_at"):
+            data["pridano_at"] = _utc_now_iso()
+        self.conn.execute(_insert_sql(table, data), tuple(data.values()))
+        return True
+
+    def upsert_clanek(self, row: dict) -> bool:
+        with self.conn:
+            return self._upsert_row("clanky", row)
+
+    def upsert_kampan(self, row: dict) -> bool:
+        with self.conn:
+            return self._upsert_row("kampane", row)
+
+    def replace_kampan_kreativy(self, kampan_id: str, rows: list[dict]) -> int:
+        """Replace all creatives of a campaign; returns the number of rows written."""
+        columns = self._table_columns("kampane_kreativy")
+        count = 0
+        with self.conn:
+            self.conn.execute("DELETE FROM kampane_kreativy WHERE kampan_id = ?", (kampan_id,))
+            for r in rows or []:
+                data = {k: _db_value(v) for k, v in r.items() if k in columns}
+                if not data.get("id"):
+                    raise ValueError("kampane_kreativy: row is missing 'id'")
+                data["kampan_id"] = kampan_id
+                self.conn.execute(
+                    _insert_sql("kampane_kreativy", data, "INSERT OR REPLACE"), tuple(data.values())
+                )
+                count += 1
+        return count
+
+    def upsert_mystery(self, row: dict) -> bool:
+        with self.conn:
+            return self._upsert_row("mystery_shopping", row)
+
+    def upsert_produkt(self, row: dict) -> bool:
+        with self.conn:
+            return self._upsert_row("produkty", row)
+
+    def upsert_executive_summary(self, row: dict, polozky: list[dict]) -> bool:
+        """Upsert a monthly summary and replace its entries (``executive_summary_polozky``).
+
+        A stored summary for the same (segment_id, rok, mesic) under another id is treated
+        as the same record and re-keyed to ``row["id"]``. Entries without ``id`` but with
+        ``entry_id`` get ``fc-es-entry-<entry_id>``; ``poradi`` defaults to list order."""
+        summary_id = row.get("id")
+        if not summary_id:
+            raise ValueError("executive_summary: row is missing 'id'")
+        columns = self._table_columns("executive_summary_polozky")
+        with self.conn:
+            if row.get("segment_id") and row.get("rok") is not None and row.get("mesic") is not None:
+                other = self.conn.execute(
+                    """SELECT id FROM executive_summary
+                       WHERE segment_id = ? AND rok = ? AND mesic = ? AND id != ?""",
+                    (row["segment_id"], row["rok"], row["mesic"], summary_id),
+                ).fetchone()
+                own = self.conn.execute(
+                    "SELECT 1 FROM executive_summary WHERE id = ?", (summary_id,)
+                ).fetchone()
+                if other and not own:
+                    self.conn.execute(
+                        "DELETE FROM executive_summary_polozky WHERE summary_id = ?", (other["id"],)
+                    )
+                    self.conn.execute(
+                        "UPDATE executive_summary SET id = ? WHERE id = ?", (summary_id, other["id"])
+                    )
+            inserted = self._upsert_row("executive_summary", row)
+            self.conn.execute(
+                "DELETE FROM executive_summary_polozky WHERE summary_id = ?", (summary_id,)
+            )
+            for index, p in enumerate(polozky or []):
+                data = {k: _db_value(v) for k, v in p.items() if k in columns}
+                if not data.get("id") and p.get("entry_id") is not None:
+                    data["id"] = f"fc-es-entry-{p['entry_id']}"
+                if not data.get("id"):
+                    raise ValueError("executive_summary_polozky: row is missing 'id'")
+                data["summary_id"] = summary_id
+                if data.get("poradi") is None:
+                    data["poradi"] = index
+                self.conn.execute(
+                    _insert_sql("executive_summary_polozky", data, "INSERT OR REPLACE"),
+                    tuple(data.values()),
+                )
+        return inserted
+
+    def upsert_spolecnost_detail(self, competitor_id: str, row: dict) -> None:
+        """Upsert the company profile; a row key ``ico`` fills ``competitors.ico`` when empty."""
+        data = dict(row)
+        data["competitor_id"] = competitor_id
+        ico = data.pop("ico", None)
+        with self.conn:
+            self._upsert_row("spolecnost_detail", data, key="competitor_id")
+            if ico:
+                self.conn.execute(
+                    "UPDATE competitors SET ico = ? WHERE id = ? AND (ico IS NULL OR ico = '')",
+                    (str(ico), competitor_id),
+                )
+
+    def replace_prilohy(self, entity_type: str, entity_id: str, rows: list[dict]) -> int:
+        """Replace attachments of an item; rows carry ``url`` and ``nazev`` (or ``name``).
+        Rows without a url and duplicate urls are skipped. Returns rows written."""
+        count = 0
+        with self.conn:
+            self.conn.execute(
+                "DELETE FROM finecim_prilohy WHERE entity_type = ? AND entity_id = ?",
+                (entity_type, entity_id),
+            )
+            for r in rows or []:
+                if not r.get("url"):
+                    continue
+                cur = self.conn.execute(
+                    """INSERT OR IGNORE INTO finecim_prilohy (entity_type, entity_id, nazev, url)
+                       VALUES (?, ?, ?, ?)""",
+                    (entity_type, entity_id, r.get("nazev", r.get("name")), r["url"]),
+                )
+                count += cur.rowcount
+        return count
+
+    def replace_vazby(self, entity_type: str, entity_id: str, subject_ids: list[int]) -> int:
+        """Replace the related-company links of an item; returns distinct links written."""
+        unique_ids = list(dict.fromkeys(int(s) for s in subject_ids or []))
+        with self.conn:
+            self.conn.execute(
+                "DELETE FROM finecim_vazby WHERE entity_type = ? AND entity_id = ?",
+                (entity_type, entity_id),
+            )
+            self.conn.executemany(
+                "INSERT INTO finecim_vazby (entity_type, entity_id, subject_id) VALUES (?, ?, ?)",
+                [(entity_type, entity_id, sid) for sid in unique_ids],
+            )
+        return len(unique_ids)
+
+    # ── FINeCIM: incremental sync helpers ────────────────────────
+
+    def known_finecim_ids(self, entity: str, ids: list[int]) -> dict[int, str | None]:
+        """Map each already-stored FINeCIM id to its stored date; unknown ids are absent.
+
+        Dates: news/mystery ``datum``, campaign ``aktualizace``, product ``aktualizace`` (else
+        the insert date), summary the insert date, company ``finecim_subjekty.aktualizace``.
+        Entity names follow ``sync.ENTITIES``; Czech table-style aliases are accepted too."""
+        name = _FINECIM_ENTITY_ALIASES.get(entity, entity)
+        if name != "company" and name not in _FINECIM_ENTITY_TABLES:
+            raise ValueError(f"Unknown FINeCIM entity: {entity!r}")
+        wanted = list(dict.fromkeys(int(i) for i in ids or []))
+        result: dict[int, str | None] = {}
+        for start in range(0, len(wanted), 500):
+            chunk = wanted[start:start + 500]
+            marks = ", ".join("?" for _ in chunk)
+            if name == "company":
+                rows = self.conn.execute(
+                    f"""SELECT subject_id AS k, aktualizace AS d FROM finecim_subjekty
+                        WHERE subject_id IN ({marks})""",
+                    chunk,
+                ).fetchall()
+                result.update({int(r["k"]): r["d"] for r in rows})
+                continue
+            table, prefix, date_expr = _FINECIM_ENTITY_TABLES[name]
+            rows = self.conn.execute(
+                f"SELECT id AS k, {date_expr} AS d FROM {table} WHERE id IN ({marks})",
+                [f"{prefix}{i}" for i in chunk],
+            ).fetchall()
+            result.update({int(r["k"][len(prefix):]): r["d"] for r in rows})
+        return result
+
+    def get_finecim_sync(self, entity: str, segment_id: str) -> dict | None:
+        row = self.conn.execute(
+            "SELECT * FROM finecim_sync WHERE entity = ? AND segment_id = ?",
+            (entity, segment_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def set_finecim_sync(self, entity: str, segment_id: str, **fields) -> None:
+        """Upsert sync state; only the given fields change. Allowed fields: last_run_at,
+        last_success_at, last_page, newest_id, note (unknown names raise ValueError)."""
+        unknown = set(fields) - set(_FINECIM_SYNC_FIELDS)
+        if unknown:
+            raise ValueError(f"Unknown finecim_sync fields: {sorted(unknown)}")
+        with self.conn:
+            self.conn.execute(
+                "INSERT OR IGNORE INTO finecim_sync (entity, segment_id) VALUES (?, ?)",
+                (entity, segment_id),
+            )
+            if fields:
+                assignments = ", ".join(f"{k} = ?" for k in fields)
+                self.conn.execute(
+                    f"UPDATE finecim_sync SET {assignments} WHERE entity = ? AND segment_id = ?",
+                    (*fields.values(), entity, segment_id),
+                )
 
     # ── Signals ──────────────────────────────────────────────────
 

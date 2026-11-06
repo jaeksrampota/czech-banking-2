@@ -92,6 +92,35 @@ export default function CampaignCard({ kampan, spolecnost }: Props) {
             ))}
           </div>
         )}
+        {kampan.kreativy && kampan.kreativy.length > 0 && (
+          <ul className="mt-3 pt-3 border-t border-slate-100 space-y-1">
+            {kampan.kreativy.slice(0, 4).map((kr) => (
+              <li key={kr.id} className="text-[10px] font-bold text-slate-600 flex items-center gap-2">
+                <span className="text-slate-400 shrink-0">{kr.datum ? formatDate(kr.datum) : '—'}</span>
+                <span className="uppercase tracking-wider text-slate-400 shrink-0">
+                  {kr.media_typ ? (MEDIA_TYPE_LABELS[kr.media_typ] || kr.media_typ) : ''}
+                </span>
+                {kr.media_url ? (
+                  <a
+                    href={kr.media_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate hover:text-slate-900"
+                  >
+                    {kr.popis || (kr.media_druh === 'video' ? 'Video' : 'Kreativa')}
+                  </a>
+                ) : (
+                  <span className="truncate">{kr.popis}</span>
+                )}
+              </li>
+            ))}
+            {kampan.kreativy.length > 4 && (
+              <li className="text-[10px] font-bold text-slate-300">
+                + {kampan.kreativy.length - 4} dalších kreativ
+              </li>
+            )}
+          </ul>
+        )}
       </div>
     </article>
   );
