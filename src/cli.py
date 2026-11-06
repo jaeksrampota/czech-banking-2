@@ -505,7 +505,7 @@ def finecim_login_check(ctx):
               help="FINeCIM segment slug (repeatable; default all).")
 @click.option("--max-pages", type=click.IntRange(min=1), default=None,
               help="Page budget per entity and segment, head scan and backfill together; only "
-                   "pages on which a detail was fetched count (default 3; unlimited with --full).")
+                   "pages with new work (unknown or newer-dated cards) count (default 3; unlimited with --full).")
 @click.option("--max-items", type=click.IntRange(min=1), default=None,
               help="Item budget: max detail fetches per entity and segment (default 120 for "
                    "news, campaigns, mystery shopping and products; unlimited with --full).")

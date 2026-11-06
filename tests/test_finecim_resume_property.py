@@ -87,6 +87,10 @@ class SimList:
         return self.ids[(n - 1) * PAGE_SIZE:n * PAGE_SIZE]
 
 
+class SimCrash(BaseException):
+    """A run killed mid-walk (like KeyboardInterrupt: not caught as a failed detail)."""
+
+
 class SimClient:
     """Serves SimList pages and detail pages; records list requests and detail fetches."""
 
@@ -96,6 +100,11 @@ class SimClient:
         self.failing: set[int] = set()
         self.list_requests = 0
         self.fetches: dict[int, int] = {}
+        # crash simulation: the ``crash_after + 1``-th detail request of a run raises
+        # SimCrash (after ``on_crash``); ``run_details`` counts the requests of the run
+        self.crash_after: int | None = None
+        self.on_crash = None
+        self.run_details = 0
 
     def __enter__(self):
         return self
@@ -108,6 +117,11 @@ class SimClient:
         match = re.search(r"/news/(\d+)$", parts.path)
         if match:
             item_id = int(match.group(1))
+            if self.crash_after is not None and self.run_details >= self.crash_after:
+                if self.on_crash is not None:
+                    self.on_crash()
+                raise SimCrash(f"killed after {self.run_details} details")
+            self.run_details += 1
             self.fetches[item_id] = self.fetches.get(item_id, 0) + 1
             if item_id in self.failing:
                 return "<html><body><p>Něco se pokazilo</p></body></html>"  # parsers raise
@@ -172,6 +186,7 @@ def run(db: Database, client: SimClient, **kw):
         _SYNCERS.clear()
         _SYNCERS[key] = FinecimSync(client, db, CONFIG_DIR)
     before = client.list_requests
+    client.run_details = 0
     stats = _SYNCERS[key].sync_news(["ucty"], **kw)
     return stats, client.list_requests - before
 
@@ -263,6 +278,74 @@ def test_randomized_runs_lose_nothing(make_db, fast_detail, seed):
     # and a further plain run has nothing left to do
     stats, requests = run(db, client)
     assert (stats.fetched, requests) == (0, 1)
+
+
+_SYNC_FIELDS = ("last_run_at", "last_success_at", "last_page", "newest_id", "note")
+
+
+@pytest.mark.parametrize("seed", range(30))
+def test_randomized_runs_with_crashes_lose_nothing(make_db, fast_detail, seed):
+    """Runs are killed after k details. Half of the kills are hard (the finecim_sync row
+    is put back to what was on disk at the moment of the crash, as if no finally block
+    had run); the others propagate like Ctrl+C. Nothing listed is lost."""
+    rng = random.Random(20_000 + seed)
+    db = make_db(f"crash{seed}")
+    sim = SimList(archive=rng.randint(0, 30))
+    client = SimClient(sim)
+    crashes = 0
+    for _ in range(25):
+        sim.insert(rng.randint(0, 40))
+        if len(sim.ids) > 2 and rng.random() < 0.25:
+            sim.delete_at(rng.randint(1, len(sim.ids) - 1))
+        client.failing = {i for i in sim.ids if rng.random() < 0.05}
+        hard = rng.random() < 0.5
+        on_disk: list[dict | None] = []
+        client.crash_after = rng.randint(0, 12) if rng.random() < 0.5 else None
+        client.on_crash = (
+            (lambda seen=on_disk: seen.append(db.get_finecim_sync("news", "ucty"))) if hard else None
+        )
+        max_pages, max_items = rng.randint(1, 4), rng.randint(3, 30)
+        try:
+            run(db, client, max_pages=max_pages, max_items=max_items)
+        except SimCrash:
+            crashes += 1
+            if hard:
+                row = on_disk[0]
+                if row is None:
+                    db.conn.execute("DELETE FROM finecim_sync WHERE entity = 'news' AND segment_id = 'ucty'")
+                    db.conn.commit()
+                else:
+                    db.set_finecim_sync("news", "ucty", **{k: row[k] for k in _SYNC_FIELDS})
+    client.crash_after = None
+    client.failing = set()
+    for _ in range(6):
+        run(db, client, max_pages=UNLIMITED, max_items=UNLIMITED)
+    assert set(sim.ids) <= stored_ids(db)
+    st = state(db)
+    assert st.complete and st.guard is None
+    assert crashes > 0
+
+
+def test_persistent_badges_on_page_1_do_not_starve_the_backfill(make_db, fast_detail):
+    db = make_db()
+    sim = SimList(archive=45)  # 15 pages
+    client = SimClient(sim)
+    run(db, client)  # pages 1..3, cursor 4
+    assert state(db).cursor == 4
+    client.badged = set(sim.page(1))
+    for _ in range(10):
+        before = state(db)
+        stats, _ = run(db, client)
+        # the badged cards are refetched, but they are not work: the head stops on page 1
+        # for free and the whole page budget goes to the backfill
+        assert stats.fetched <= len(client.badged) + DEFAULT_MAX_PAGES * PAGE_SIZE
+        st = state(db)
+        if not before.complete:
+            assert st.complete or st.cursor == before.cursor + DEFAULT_MAX_PAGES
+    st = state(db)
+    assert st.complete and st.guard is None
+    assert set(sim.ids) <= stored_ids(db)
+    assert all(client.fetches[i] == 11 for i in sim.page(1))
 
 
 # ── (3) budget accounting ────────────────────────────────────────

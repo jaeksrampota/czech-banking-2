@@ -259,7 +259,9 @@ CREATE TABLE IF NOT EXISTS executive_summary_polozky (
     clanek_id TEXT,                                  -- fc-news-<id> (nemusí být ještě stažen)
     nazev TEXT,
     text TEXT,
-    poradi INTEGER
+    poradi INTEGER,
+    url TEXT,                                        -- odkaz položky (zpráva, kampaň, mystery, produkt)
+    typ TEXT                                         -- news | campaign | mystery-shopping | produkt | NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_es_polozky_summary ON executive_summary_polozky(summary_id);

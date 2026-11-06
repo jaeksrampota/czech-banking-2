@@ -25,6 +25,8 @@ _EXTRA_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("segmenty", "finecim_slug", "TEXT"),
     ("produktove_linie", "finecim_id", "INTEGER"),
     ("produkty", "aktualizace", "TEXT"),
+    ("executive_summary_polozky", "url", "TEXT"),
+    ("executive_summary_polozky", "typ", "TEXT"),
 )
 
 # entity name -> (table, id prefix, SQL expression of the stored date)
@@ -679,7 +681,12 @@ class Database:
 
         A stored summary for the same (segment_id, rok, mesic) under another id is treated
         as the same record and re-keyed to ``row["id"]``. Entries without ``id`` but with
-        ``entry_id`` get ``fc-es-entry-<entry_id>``; ``poradi`` defaults to list order."""
+        ``entry_id`` get ``fc-es-entry-<entry_id>``; ``poradi`` defaults to list order. Entries
+        may carry ``url`` (link of the item) and ``typ`` (``news`` / ``campaign`` /
+        ``mystery-shopping`` / ``produkt``).
+
+        Month pages are shared across domains, so an existing summary keeps its ``segment_id``
+        on update (the first segment wins); the other columns are updated."""
         summary_id = row.get("id")
         if not summary_id:
             raise ValueError("executive_summary: row is missing 'id'")
@@ -701,6 +708,11 @@ class Database:
                     self.conn.execute(
                         "UPDATE executive_summary SET id = ? WHERE id = ?", (summary_id, other["id"])
                     )
+            stored = self.conn.execute(
+                "SELECT 1 FROM executive_summary WHERE id = ?", (summary_id,)
+            ).fetchone()
+            if stored:
+                row = {k: v for k, v in row.items() if k != "segment_id"}
             inserted = self._upsert_row("executive_summary", row)
             self.conn.execute(
                 "DELETE FROM executive_summary_polozky WHERE summary_id = ?", (summary_id,)

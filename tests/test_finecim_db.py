@@ -290,6 +290,68 @@ def test_upsert_executive_summary(db):
     assert entry_2["summary_id"] == "fc-es-119" and entry_2["poradi"] == 1
 
 
+def test_executive_summary_entries_store_url_and_typ(db):
+    row = {"id": "fc-es-130", "segment_id": "ucty", "rok": 2026, "mesic": 7, "nazev": "červenec"}
+    polozky = [
+        {"entry_id": 1, "clanek_id": "fc-news-1", "nazev": "Zpráva", "text": "a",
+         "url": "https://www.finecim.cz/cz/domena/ucty/news/1", "typ": "news"},
+        {"entry_id": 2, "clanek_id": None, "nazev": "Kampaň", "text": "b",
+         "url": "https://www.finecim.cz/cz/domena/ucty/campaign/4695", "typ": "campaign"},
+        {"entry_id": 3, "nazev": "Bez odkazu", "text": "c"},
+    ]
+    db.upsert_executive_summary(row, polozky)
+    rows = {r["id"]: dict(r) for r in db.conn.execute("SELECT * FROM executive_summary_polozky")}
+    assert rows["fc-es-entry-1"]["typ"] == "news"
+    assert rows["fc-es-entry-1"]["url"].endswith("/news/1")
+    assert rows["fc-es-entry-2"]["typ"] == "campaign"
+    assert rows["fc-es-entry-2"]["url"].endswith("/campaign/4695")
+    assert rows["fc-es-entry-2"]["clanek_id"] is None
+    assert rows["fc-es-entry-3"]["url"] is None and rows["fc-es-entry-3"]["typ"] is None
+
+
+def test_init_adds_url_and_typ_to_an_existing_polozky_table(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "legacy.sqlite"
+    conn = sqlite3.connect(path)
+    conn.execute(
+        """CREATE TABLE executive_summary_polozky (
+               id TEXT PRIMARY KEY, summary_id TEXT NOT NULL, clanek_id TEXT,
+               nazev TEXT, text TEXT, poradi INTEGER)""")
+    conn.execute("INSERT INTO executive_summary_polozky (id, summary_id) VALUES ('old', 'fc-es-1')")
+    conn.commit()
+    conn.close()
+
+    database = Database(str(path))
+    try:
+        database.initialize()
+        columns = database._table_columns("executive_summary_polozky")
+        assert "url" in columns and "typ" in columns
+        old = database.conn.execute("SELECT * FROM executive_summary_polozky WHERE id = 'old'").fetchone()
+        assert old["url"] is None and old["typ"] is None
+        database.initialize()  # idempotent
+        assert database._table_columns("executive_summary_polozky").count("url") == 1
+    finally:
+        database.close()
+
+
+def test_executive_summary_update_keeps_the_first_segment(db):
+    row = {"id": "fc-es-140", "segment_id": "ucty", "rok": 2026, "mesic": 8, "nazev": "srpen"}
+    assert db.upsert_executive_summary(row, []) is True
+    # the same month page reached through another domain
+    assert db.upsert_executive_summary(
+        {**row, "segment_id": "sporeni", "telo": "nové"}, [{"entry_id": 9, "nazev": "X"}]
+    ) is False
+    stored = db.conn.execute("SELECT * FROM executive_summary WHERE id = 'fc-es-140'").fetchone()
+    assert stored["segment_id"] == "ucty"
+    assert stored["telo"] == "nové"
+    assert [s["id"] for s in db.get_executive_summary("ucty")] == ["fc-es-140"]
+    assert db.get_executive_summary("sporeni") == []
+    entries = db.conn.execute(
+        "SELECT summary_id FROM executive_summary_polozky WHERE id = 'fc-es-entry-9'").fetchone()
+    assert entries["summary_id"] == "fc-es-140"
+
+
 def test_upsert_spolecnost_detail(db):
     db.ensure_competitor_for_subject(999, "Nová banka")
     db.upsert_spolecnost_detail("fc_999", {

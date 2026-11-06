@@ -2,6 +2,7 @@ import pytest
 import yaml
 from src.api import create_app, sanitize_html
 from src.models import Signal
+from src.models.database import Database
 
 
 @pytest.fixture
@@ -280,6 +281,46 @@ def test_executive_summary_with_entries(finecim_client):
     assert es["polozky"][0]["clanek_existuje"] is True
     assert es["polozky"][1]["clanek_existuje"] is False
     assert es["polozky"][1]["text"] == "Shrnutí 2"
+    # rows without url/typ (stored before those columns) still expose the clanek link
+    assert es["polozky"][0]["typ"] is None
+    assert es["polozky"][0]["url"] == f"{FC}/news/43573"
+
+
+def test_executive_summary_entries_expose_url_and_typ(finecim_client, seeded_db):
+    db = Database(seeded_db.db_path)  # the fixture closed its connection
+    db.upsert_executive_summary(
+        {"id": "fc-es-13", "segment_id": "ucty", "rok": 2026, "mesic": 7, "nazev": "červenec 2026"},
+        [
+            {"entry_id": 201, "clanek_id": "fc-news-43573", "nazev": "mBank mění ceník", "text": "N",
+             "url": f"{FC}/news/43573", "typ": "news"},
+            {"entry_id": 202, "clanek_id": None, "nazev": "Kampaň Air Bank", "text": "K",
+             "url": f"{FC}/campaign/4695", "typ": "campaign"},
+            {"entry_id": 203, "clanek_id": None, "nazev": "Mystery", "text": "M",
+             "url": f"{FC}/mystery-shopping/5", "typ": "mystery-shopping"},
+            {"entry_id": 204, "clanek_id": "fc-news-77", "nazev": "Nestažená", "text": "S",
+             "url": f"{FC}/news/77", "typ": "news"},
+        ],
+    )
+    db.close()
+    rows = finecim_client.get("/api/segment/ucty/executive-summary").get_json()
+    es = next(r for r in rows if r["id"] == "fc-es-13")
+    by_id = {p["id"]: p for p in es["polozky"]}
+    assert list(by_id) == ["fc-es-entry-201", "fc-es-entry-202", "fc-es-entry-203", "fc-es-entry-204"]
+
+    news = by_id["fc-es-entry-201"]
+    assert news["typ"] == "news" and news["url"] == f"{FC}/news/43573"
+    assert news["clanek_url"] == f"{FC}/news/43573" and news["clanek_existuje"] is True
+
+    campaign = by_id["fc-es-entry-202"]
+    assert campaign["typ"] == "campaign" and campaign["url"] == f"{FC}/campaign/4695"
+    assert campaign["clanek_url"] is None and campaign["clanek_existuje"] is False
+
+    mystery = by_id["fc-es-entry-203"]
+    assert mystery["typ"] == "mystery-shopping" and mystery["url"] == f"{FC}/mystery-shopping/5"
+    assert mystery["clanek_existuje"] is False
+
+    missing = by_id["fc-es-entry-204"]
+    assert missing["clanek_existuje"] is False and missing["url"] == f"{FC}/news/77"
 
 
 def test_spolecnost_detail_profile_attachments_and_counts(finecim_client):

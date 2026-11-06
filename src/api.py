@@ -620,7 +620,15 @@ def _summary_entries(db: Database, summary_ids: list[str]) -> dict[str, list[dic
     result: dict[str, list[dict]] = {}
     for r in rows:
         entry = dict(r)
-        entry["clanek_existuje"] = entry.get("clanek_nazev") is not None
+        # typ: news | campaign | mystery-shopping | produkt | None (rows stored before typ existed
+        # are news entries when they reference a clanek).
+        is_news = entry.get("typ") in (None, "news")
+        if not is_news:
+            # Entries linking to a campaign / mystery report / product have no clanek; the
+            # dashboard links them to the FINeCIM page via "url".
+            entry["clanek_url"] = entry["clanek_nazev"] = entry["clanek_datum"] = None
+        entry["clanek_existuje"] = is_news and entry.get("clanek_nazev") is not None
+        entry["url"] = entry.get("url") or entry.get("clanek_url")
         result.setdefault(r["summary_id"], []).append(entry)
     return result
 

@@ -250,7 +250,7 @@ def _info_date(info: Tag | None, date_selector: str) -> str | None:
     for noise in work.select("ul, ol, li, [class*=badge], [class*=type]"):
         noise.decompose()
     text = work.get_text(" ")
-    return _strict_date(text) or parse_date_cz(_DATE_LABEL_RE.sub(" ", text.replace(" ", " ")))
+    return _strict_date(text) or parse_date_cz(_DATE_LABEL_RE.sub(" ", text.replace("\xa0", " ")))
 
 
 def _canonical(url: str) -> str:
@@ -334,29 +334,73 @@ def _split_list(text: str | None) -> list[str]:
     return [p for part in text.split(",") if (p := _clean(part))]
 
 
+# Labels of the date lines on campaign/product details; a value element belongs to the
+# nearest label before it.
+_KNOWN_DATE_LABELS = ("datum vytvoření", "datum aktualizace", "začátek", "konec", "aktualizace")
+
+
+def _other_labels(label: str) -> list[str]:
+    return [o for o in _KNOWN_DATE_LABELS if o != label and o not in label]
+
+
+def _norm_low(text: str) -> str:
+    return _WS_RE.sub(" ", str(text).replace("\xa0", " ")).lower()
+
+
+def _label_between(start: NavigableString, end: Tag, label: str) -> bool:
+    """True when a known date label other than ``label`` occurs after ``label`` in ``start``
+    or in any text between ``start`` and ``end``."""
+    others = _other_labels(label)
+    own = _norm_low(start)
+    pos = own.find(label)
+    if pos >= 0 and any(o in own[pos + len(label) :] for o in others):
+        return True
+    node = start.next_element
+    while node is not None and node is not end:
+        if isinstance(node, NavigableString) and not isinstance(node, Comment):
+            text = _norm_low(node)
+            if any(o in text for o in others):
+                return True
+        node = node.next_element
+    return False
+
+
+def _cut_at_label(text: str, label: str) -> str:
+    """``text`` up to the first other known date label (the value after ``label`` ends there)."""
+    end = len(text)
+    for other in _other_labels(label):
+        idx = text.find(other)
+        if 0 <= idx < end:
+            end = idx
+    return text[:end]
+
+
 def _labeled_date(root: Tag | None, selector: str, label: str) -> str | None:
-    """Date from a ``<p>Label: <strong>DD.MM.YYYY</strong></p>`` style element."""
+    """Date from a ``<p>Label: <strong>DD.MM.YYYY</strong></p>`` style element.
+
+    The ``<strong>``/``<b>`` following the label is used only when it lies in the same element
+    and no other known date label stands between the label and it."""
     if root is None:
         return None
     label = label.lower()
     for p in root.select(selector):
         for string in p.find_all(string=True):
-            low = str(string).replace("\xa0", " ").lower()
+            low = _norm_low(string)
             pos = low.find(label)
             if pos < 0:
                 continue
             strong = string.find_next(["strong", "b"])
-            if strong is not None and p in strong.parents:
+            if strong is not None and p in strong.parents and not _label_between(string, strong, label):
                 # The value element after the label is authoritative; any date-like text
                 # between the label and the element is ignored.
                 return _element_date(strong)
-            found = _strict_date(str(string)[pos + len(label) :])
+            found = _strict_date(_cut_at_label(low[pos + len(label) :], label))
             if found:
                 return found
             full = (_text(p) or "").lower()
             index = full.find(label)
             if index >= 0:
-                found = _strict_date(full[index + len(label) :])
+                found = _strict_date(_cut_at_label(full[index + len(label) :], label))
                 if found:
                     return found
     return None
@@ -661,11 +705,18 @@ def parse_pagination(html: str) -> dict:
 # --------------------------------------------------------------------------- list pages
 
 
-def _cards(soup: BeautifulSoup, container_selector: str, card_selector: str) -> list[Tag]:
+def _listing_container(soup: BeautifulSoup, container_selector: str) -> Tag:
+    """The listing container of a list page; ParseError when ``#kt_content`` lacks it.
+
+    An existing container without cards is a valid empty page (the caller returns ``[]``)."""
     container = soup.select_one(container_selector)
     if container is None:
-        return []
-    return container.select(card_selector)
+        raise ParseError("listing container missing")
+    return container
+
+
+def _cards(soup: BeautifulSoup, container_selector: str, card_selector: str) -> list[Tag]:
+    return _listing_container(soup, container_selector).select(card_selector)
 
 
 def parse_news_list(html: str, url: str) -> list[dict]:
@@ -778,7 +829,8 @@ def parse_product_list(html: str, url: str) -> list[dict]:
 def parse_subject_list(html: str, url: str) -> list[dict]:
     soup = _soup(html)
     segment = _list_segment(url)
-    container = soup.select_one("#snippet--content") or soup
+    _listing_container(soup, "#snippet--content .row")
+    container = soup.select_one("#snippet--content")
     out = []
     seen: set[int] = set()
     for card in container.select(".ecim-widget-subject"):
@@ -1394,7 +1446,16 @@ def parse_executive_summary_list(html: str, url: str) -> list[dict]:
     return out
 
 
+#: Item types an executive-summary entry can link to (the URL's entity segment).
+_SUMMARY_ENTITIES = frozenset({"news", "campaign", "mystery-shopping", "produkt"})
+
+
 def parse_executive_summary_detail(html: str, url: str) -> dict:
+    """Month page of the executive summary.
+
+    Each entry has ``entity`` (``news`` / ``campaign`` / ``mystery-shopping`` / ``produkt``, or
+    None for any other link) and ``item_url`` (absolute URL of the linked item). ``news_id`` is
+    set only for news entries; ``news_url`` repeats ``item_url`` for backward compatibility."""
     soup = _soup(html)
     page = soup.select_one(".ecim-summary-page")
     title = soup.select_one("h1.ecim-summary-page__title")
@@ -1404,14 +1465,17 @@ def parse_executive_summary_detail(html: str, url: str) -> dict:
     entries = []
     for entry in root.select("div.ecim-widget-summary"):
         link = entry.select_one("h3.ecim-widget-summary__title a[href]")
-        news_url = _abs(link.get("href")) if link is not None else None
-        news_info = _try_item_url(news_url) or {}
+        item_url = _safe_url(link.get("href")) if link is not None else None
+        info = _try_item_url(item_url) or {}
+        entity = info.get("entity") if info.get("entity") in _SUMMARY_ENTITIES else None
         picker = entry.select_one("input.es-entry-picker")
         entries.append(
             {
                 "entry_id": _to_int(picker.get("value")) if picker is not None else None,
-                "news_id": news_info.get("id"),
-                "news_url": news_url,
+                "news_id": info.get("id") if entity == "news" else None,
+                "news_url": item_url,
+                "entity": entity,
+                "item_url": item_url,
                 "title": _text(link),
                 "text": _text(entry.select_one("p.es-annotation-text")),
             }

@@ -12,6 +12,11 @@ list-driven entities (news, campaign, mystery, product):
   mystery cards show the publish date, which says nothing about updates, so a badged
   news/mystery card is always refetched. A card is matched by its id alone, so an item
   listed in another domain than its own URL slug is "known" there too.
+* only *new work* counts for the early stop and the page budget: a card that is unknown,
+  or whose card date is newer than the stored one (for products, which show no date, a
+  badge refetch that found a new update date). A stored card refetched only because of
+  its ``updated`` badge is fetched but is not work, so a badge that stays on page 1 for
+  weeks neither blocks the early stop nor eats the backfill's page budget.
 
 Resume model per (entity, segment). FINeCIM lists are newest-first, new items are only
 ever inserted at the top and ids are monotonic (a newer item has a larger id), so a
@@ -34,10 +39,10 @@ arrive. The finecim_sync row holds:
 
 A run has a page budget (``max_pages``; DEFAULT_MAX_PAGES, unlimited with ``full``) and an
 item budget (``max_items`` detail fetches per entity and segment; DEFAULT_MAX_ITEMS,
-unlimited with ``full``). Head-scan pages on which no detail was fetched (fully known
-pages, the early-stop page) and the backfill's check of the page before the cursor are
-free; every other list page counts (also a fully known backfill page). A run that has a page budget reads at most
-MAX_FREE_PAGES free pages (a runaway stop; when the head scan hits it, the cursor takes
+unlimited with ``full``). Head-scan pages without new work (fully known pages, pages
+with only badge refetches, the early-stop page) and the backfill's check of the page
+before the cursor are free; every other list page counts (also a fully known backfill
+page). A run that has a page budget reads at most MAX_FREE_PAGES free pages (a runaway stop; when the head scan hits it, the cursor takes
 over from the next page), so it makes at most budget + MAX_FREE_PAGES list requests.
 
 * The head scan reads from page 1. It fetches the cards that need it in list order; when
@@ -70,10 +75,35 @@ Items only enter at the top, so nothing moves from
 "below" to "above" an already processed position; a removed item moves the cards after it
 up, which the id checks (the guard comparison, ``after=`` at the cursor) detect.
 
+Crash-safe checkpoints: the state is written to finecim_sync per page, not only when a
+walk ends, so a killed process, a reboot or Ctrl+C mid-walk leaves a state from which
+nothing is lost. Before the new cards of a head page are fetched, the state is written as
+if the head scan were cut there (guard = the smallest new card of the page, an older
+smaller guard wins; on a segment that was never walked, or when the cut lies at or beyond
+the cursor, the cursor moves to that page instead); after each finished head page, the
+state of a cut below that page; in the backfill, the cursor before and after each page.
+Checkpoints include the head failures so far and do not set ``last_success_at``. The
+final write runs in a finally block, so the position reached is also recorded when an
+exception propagates (FinecimAuthError, a database error, KeyboardInterrupt); the
+exception is re-raised.
+
+Markup safety: a list page that cannot be read or parsed (HTTP error, ParseError such as
+"listing container missing" after a markup change, any other exception from the list
+parser, or cards none of which carries an id) is an error: the walk ends there and the
+state stays as it was after the previous page (no completion, the cursor does not move
+past it, a pending guard is kept). Only a parsed page whose listing container holds no
+cards, or the pager's last page, ends the list.
+
 Every detail is processed inside its own try/except: one bad page increments
 ``SyncStats.errors`` and the run continues. A failed login (FinecimAuthError) aborts the
 run, since every further request would fail the same way; the position reached so far is
 recorded first.
+
+Executive summaries: the title is the list label when it is a Czech month name, else the
+Czech name of the month number (pre-2020 labels read "6/2014 Executive Summary"). An
+entry links a news article, a campaign, a mystery shopping or a product (``entity``);
+``executive_summary_polozky`` keeps the link (``url``) and its type (``typ``), and
+``clanek_id`` only for news entries.
 """
 
 from __future__ import annotations
@@ -82,7 +112,7 @@ import logging
 import os
 import re
 from collections.abc import Callable, Iterable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -113,6 +143,7 @@ __all__ = [
     "load_finecim_settings",
     "page_budget",
     "resume_state",
+    "summary_title",
 ]
 
 ENTITIES = ("company", "news", "campaign", "mystery", "product", "summary")
@@ -121,7 +152,7 @@ SYNC_TARGETS = ("taxonomy", *ENTITIES)
 
 LIST_STEP = 96
 #: List pages per entity and segment of a plain run (head scan + backfill together). Only
-#: pages on which at least one detail was fetched count.
+#: pages with new work (unknown or newer-dated cards) count.
 DEFAULT_MAX_PAGES = 3
 #: Detail fetches per entity and segment of a plain run (list entities).
 DEFAULT_MAX_ITEMS = 120
@@ -207,8 +238,8 @@ def client_from_settings(config_dir: str | os.PathLike,
 
 
 def page_budget(max_pages: int | None, full: bool) -> int | None:
-    """List pages per entity and segment for one run (None = unlimited). Only pages on
-    which at least one detail was fetched count against it."""
+    """List pages per entity and segment for one run (None = unlimited). Only pages with
+    new work (unknown or newer-dated cards) count against it."""
     if max_pages:
         return int(max_pages)
     return None if full else DEFAULT_MAX_PAGES
@@ -316,8 +347,11 @@ def resume_state(state: dict | None) -> ResumeState:
 class _PageResult:
     ok: bool = True
     ids: list[int] = field(default_factory=list)
-    work: int = 0            # cards that needed a fetch (the early-stop signal)
-    fetched: int = 0         # detail fetches attempted on this page (charges the page budget)
+    # cards that were new work: unknown, or a newer card date than stored (for products, a
+    # badge refetch that found a new update date). The early-stop signal; a page with work
+    # charges the page budget. A badge-only refetch of a stored card is not work.
+    work: int = 0
+    fetched: int = 0         # detail fetches attempted on this page (badge refetches too)
     failed: int = 0          # detail fetches that raised
     cut_id: int | None = None  # first card not fetched because the item budget ran out
     at_end: bool = False     # empty page, or the last page of the list
@@ -363,6 +397,39 @@ def needs_fetch(item: dict, known: bool, stored_date: str | None, card_date_fiel
         # stored copy is current; a publish date (news, mystery) says nothing about updates.
         return not (date_proves_current and card_date and stored_date)
     return False
+
+
+def _is_new_work(item: dict, known: bool, stored_date: str | None, card_date_field: str | None) -> bool:
+    """A card that is unknown, or whose card date is newer than the stored one. Only such
+    cards count as work for the early stop and the page budget; a stored card refetched
+    only because of its ``updated`` badge does not (see the module docstring)."""
+    if not known:
+        return True
+    card_date = item.get(card_date_field) if card_date_field else None
+    return bool(card_date) and (stored_date is None or card_date > stored_date[:10])
+
+
+#: month number -> Czech month name (nominative), the inverse of parsers.CZECH_MONTHS
+_MONTH_NAMES: dict[int, str] = {number: name for name, number in parsers.CZECH_MONTHS.items()}
+
+
+def summary_title(label: str | None, month: int, year: int) -> str:
+    """Title of an executive summary: the list label when it is a Czech month name
+    (``červen`` -> ``červen 2026``), else the Czech name of ``month`` (pre-2020 labels such
+    as ``6/2014 Executive Summary`` -> ``červen 2014``)."""
+    label = (label or "").strip()
+    if label.lower() in parsers.CZECH_MONTHS:
+        return f"{label} {year}"
+    return f"{_MONTH_NAMES.get(month) or label or month} {year}"
+
+
+def _summary_entry_entity(entry: dict) -> str | None:
+    """What a summary entry links to: ``news``, ``campaign``, ``mystery-shopping``,
+    ``produkt`` or None. Entries from a parser without the ``entity`` key count as news
+    when they carry a news id."""
+    if "entity" in entry:
+        return entry.get("entity")
+    return "news" if entry.get("news_id") is not None else None
 
 
 class FinecimSync:
@@ -756,9 +823,17 @@ class FinecimSync:
     # ── list-driven entities ─────────────────────────────────────
 
     def _scan_page(self, entity: str, slug: str, page: int, run: _SegmentRun, seen: set[int],
-                   process: Callable[[dict, str], bool]) -> _PageResult:
+                   process: Callable[[dict, str], bool],
+                   before_fetch: Callable[[int], None] | None = None) -> _PageResult:
         """Read one list page and fetch, in list order, the cards that need it, until the
-        item budget runs out (``cut_id``). FinecimAuthError propagates."""
+        item budget runs out (``cut_id``). FinecimAuthError propagates.
+
+        A list page that cannot be read or parsed (including ParseError "listing container
+        missing" after a markup change, and cards none of which carries an id) is an error
+        (``ok=False``); only a parsed page without cards, or the pager's last page, is the
+        end of the list. ``before_fetch`` is called with the smallest id among the cards
+        that are new work, before the first detail of the page is fetched (the head scan's
+        crash-safe checkpoint)."""
         path, list_parser, _ = _LIST_ENTITIES[entity]
         date_field = _CARD_DATE_FIELD[entity]
         date_proves_current = entity in _DATE_PROVES_CURRENT
@@ -768,6 +843,9 @@ class FinecimSync:
             html, url = self._get_list_page(slug, path, page)
             items = list_parser(html, url)
             pagination = parsers.parse_pagination(html)
+            ids = [it["id"] for it in items if it.get("id") is not None]
+            if items and not ids:
+                raise parsers.ParseError(f"{len(items)} list cards without an item id")
         except FinecimAuthError:
             raise
         except Exception as exc:
@@ -775,7 +853,6 @@ class FinecimSync:
             self.log.warning("FINeCIM %s list %s page %d failed: %s", entity, slug, page, exc)
             return _PageResult(ok=False)
         stats.pages += 1
-        ids = [it["id"] for it in items if it.get("id") is not None]
         # Trust the last page only when the footer states it (the "last" anchor or the
         # total); otherwise keep reading until an empty page.
         last_known = "kt-pagination__link--last" in html or pagination.get("total") is not None
@@ -786,6 +863,14 @@ class FinecimSync:
         # Known is by id alone: a card listed here whose URL slug is another segment is
         # stored under that slug and still counts as known (no refetch, early stop holds).
         known = self.db.known_finecim_ids(entity, ids) if ids else {}
+        if before_fetch is not None:
+            work_ids = [
+                it["id"] for it in items
+                if it.get("id") is not None and it["id"] not in seen
+                and _is_new_work(it, it["id"] in known, known.get(it["id"]), date_field)
+            ]
+            if work_ids:
+                before_fetch(min(work_ids))
         for item in items:
             item_id = item.get("id")
             if item_id is None:
@@ -793,19 +878,23 @@ class FinecimSync:
             if item_id in seen:
                 stats.skipped += 1
                 continue
-            if not needs_fetch(item, item_id in known, known.get(item_id), date_field,
+            stored_before = known.get(item_id)
+            if not needs_fetch(item, item_id in known, stored_before, date_field,
                                date_proves_current):
                 stats.skipped += 1
                 continue
             if run.max_items is not None and run.fetched_here >= run.max_items:
                 result.cut_id = item_id
                 break
-            result.work += 1
+            # A stored card refetched only for its 'updated' badge is not work: a badge
+            # that stays on the list must not block the early stop or eat the page budget.
+            is_work = _is_new_work(item, item_id in known, stored_before, date_field)
+            if is_work:
+                result.work += 1
             result.fetched += 1
             run.fetched_here += 1
             seen.add(item_id)
             run.pos_item = item_id
-            stored_before = known.get(item_id)
             try:
                 inserted = process(item, slug)
                 self._count_result(stats, inserted)
@@ -818,12 +907,11 @@ class FinecimSync:
                     run.head_failed.append(item_id)
                 self.log.warning("FINeCIM %s %s failed: %s", entity, item.get("url"), exc)
                 continue
-            if (date_field is None and stored_before is not None
-                    and self._stored_date(entity, item_id) == stored_before):
-                # No card date (products): a refetch triggered only by a persistent
-                # 'updated' badge that found the same update date does not count as
-                # new work, so the early stop still applies.
-                result.work -= 1
+            if (not is_work and date_field is None and stored_before is not None
+                    and self._stored_date(entity, item_id) != stored_before):
+                # No card date (products): a badge refetch that found a new update date
+                # was real work after all.
+                result.work += 1
         run.pos_item = None
         return result
 
@@ -842,19 +930,28 @@ class FinecimSync:
             segment_id = self.slug_to_segment[slug]
             run = _SegmentRun(stats=SyncStats(), max_items=items_budget)
             state = resume_state(self.db.get_finecim_sync(entity, segment_id))
-            try:
-                failed = self._walk_segment(entity, slug, run, seen, process, budget, full, state)
-            except FinecimAuthError:
-                self._keep_head_failures(entity, slug, run, state)
-                self._record_segment(entity, segment_id, run.stats, failed=True, resume=state)
-                raise
-            self._keep_head_failures(entity, slug, run, state)
-            self._record_segment(entity, segment_id, run.stats, failed=failed, resume=state)
+            # records the state in finecim_sync per page and, in a finally block, at the end
+            self._walk_segment(entity, slug, run, seen, process, budget, full, state,
+                               segment_id=segment_id)
             total.add(run.stats)
         return total
 
+    def _checkpoint(self, entity: str, segment_id: str | None, run: _SegmentRun,
+                    resume: ResumeState, last: list[ResumeState | None]) -> None:
+        """Write ``resume`` (plus the head failures so far) to finecim_sync mid-walk, so a
+        killed run leaves a state from which nothing is lost. ``last`` holds the state
+        written last; an unchanged state is not written again. Never raises (Exception)."""
+        if segment_id is None:
+            return
+        snap = replace(resume)
+        self._keep_head_failures(entity, "", run, snap, quiet=True)
+        if last[0] == snap:
+            return
+        last[0] = snap
+        self._record_segment(entity, segment_id, run.stats, failed=True, resume=snap)
+
     def _keep_head_failures(self, entity: str, slug: str, run: _SegmentRun,
-                            state: ResumeState) -> None:
+                            state: ResumeState, *, quiet: bool = False) -> None:
         """Make the details that failed during the head scan resumable.
 
         A failed card is not stored, but the head scan has moved past it, and the next
@@ -863,12 +960,16 @@ class FinecimSync:
         marked complete): the next head scan cannot early-stop before it has seen that
         card's page again, where the card is still unknown and is fetched. Up to
         MAX_PAGE_ATTEMPTS consecutive runs with head failures keep it (``hretry=N``); after
-        that the guard is not extended and a warning names the cards."""
+        that the guard is not extended and a warning names the cards (not with ``quiet``,
+        used by the mid-walk checkpoints)."""
         if not run.head_failed:
             state.head_retry = 0
             return
         attempts = state.head_retry + 1
         if attempts >= MAX_PAGE_ATTEMPTS:
+            if quiet:
+                state.head_retry = 0
+                return
             self.log.warning("FINeCIM %s %s: details %s still failed after %d runs; the head "
                              "scan no longer returns to them", entity, slug,
                              sorted(run.head_failed, reverse=True), attempts)
@@ -901,16 +1002,33 @@ class FinecimSync:
 
     def _walk_segment(self, entity: str, slug: str, run: _SegmentRun, seen: set[int],
                       process: Callable[[dict, str], bool], budget: int | None, full: bool,
-                      state: ResumeState) -> bool:
+                      state: ResumeState, *, segment_id: str | None = None) -> bool:
         """Head scan, then backfill from the cursor (see the module docstring). ``state``
-        is updated in place, also when the login fails mid-run (FinecimAuthError is
-        re-raised after the position reached is recorded in it). Returns True when a list
-        page failed."""
+        is updated in place. Returns True when a list page failed.
+
+        With ``segment_id`` the walk is crash-safe: the state is written to finecim_sync
+        per page (before the new cards of a head page are fetched, after every finished
+        head page, before and after every backfill page), and in a finally block at the
+        end, also when an exception (FinecimAuthError, a database error, KeyboardInterrupt)
+        propagates; the exception is re-raised after the position reached is recorded."""
+        failed = True
+        try:
+            failed = self._walk(entity, slug, run, seen, process, budget, full, state, segment_id)
+            return failed
+        finally:
+            self._keep_head_failures(entity, slug, run, state)
+            if segment_id is not None:
+                self._record_segment(entity, segment_id, run.stats, failed=failed, resume=state)
+
+    def _walk(self, entity: str, slug: str, run: _SegmentRun, seen: set[int],
+              process: Callable[[dict, str], bool], budget: int | None, full: bool,
+              state: ResumeState, segment_id: str | None) -> bool:
         used = 0   # pages charged to the page budget
         free = 0   # free pages (capped by MAX_FREE_PAGES)
         read: dict[int, list[int]] = {}  # ids of the head pages read in this run
         guard = state.guard
         page = 1
+        written: list[ResumeState | None] = [None]
 
         def out_of_pages() -> bool:
             return budget is not None and used >= budget
@@ -918,11 +1036,24 @@ class FinecimSync:
         def out_of_free_pages() -> bool:  # only a run with a page budget has the cap
             return budget is not None and free >= MAX_FREE_PAGES
 
+        def head_checkpoint(at_page: int, cut_id: int | None, prev_ids: list[int] | None) -> None:
+            # the state as if the head scan were cut here (``state`` itself is not touched)
+            snap = replace(state)
+            self._head_cut(snap, at_page, cut_id, prev_ids)
+            self._checkpoint(entity, segment_id, run, snap, written)
+
+        def before_fetch(smallest_work_id: int) -> None:
+            # a crash while this page's details are fetched must not let the next head scan
+            # stop early above the new cards of this page
+            head_checkpoint(page, smallest_work_id, read.get(page - 1))
+
         # -- head scan --
         try:
             while True:
-                res = self._scan_page(entity, slug, page, run, seen, process)
+                res = self._scan_page(entity, slug, page, run, seen, process,
+                                      before_fetch if segment_id is not None else None)
                 if not res.ok:
+                    # the failed page changes nothing: the state is the one after page - 1
                     self._head_cut(state, page, None, read.get(page - 1))
                     return True
                 read[page] = res.ids
@@ -932,7 +1063,7 @@ class FinecimSync:
                 if res.at_end:
                     state.finish()
                     return False
-                if res.fetched:
+                if res.work:
                     used += 1
                 else:
                     free += 1
@@ -950,8 +1081,11 @@ class FinecimSync:
                     state.set_cursor(page + 1, min(res.ids) if res.ids else None)
                     state.guard = None
                     return False
+                head_checkpoint(page + 1, None, res.ids)  # this page is finished
                 page += 1
-        except FinecimAuthError:
+        except BaseException:
+            # FinecimAuthError, a database error, KeyboardInterrupt: record the position
+            # reached (everything above the card being fetched has been processed)
             self._head_cut(state, run.pos_page, run.pos_item, read.get(run.pos_page - 1))
             raise
 
@@ -977,12 +1111,13 @@ class FinecimSync:
                 state.set_cursor(page + 1, min(read[page]) if read[page] else None)
                 p = state.cursor
                 continue
+            self._checkpoint(entity, segment_id, run, state, written)  # before the page
             res = self._scan_page(entity, slug, p, run, seen, process)
             if not res.ok:
-                return True
-            # every backfill page counts; only a check page (before the cursor) that
-            # needed no fetch is free
-            if res.fetched or anchored:
+                return True  # the cursor stays: the page is read again next run
+            # every backfill page counts; only a check page (before the cursor) without
+            # real work is free
+            if res.work or anchored:
                 used += 1
             else:
                 free += 1
@@ -1009,6 +1144,7 @@ class FinecimSync:
                 state.finish()
                 return False
             state.set_cursor(p + 1, min(res.ids))
+            self._checkpoint(entity, segment_id, run, state, written)  # after the page
             p += 1
         return False
 
@@ -1222,30 +1358,34 @@ class FinecimSync:
         html = self.client.get(month["url"])
         d = parsers.parse_executive_summary_detail(html, month["url"])
         summary_id = f"fc-es-{d.get('id') or month['id']}"
-        # nazev comes from the list page, like mesic and rok (the year is only known there)
-        month_name = month.get("month_name") or d.get("month_name") or str(month["month"])
         entries = d.get("entries") or []
         lines = []
         polozky = []
         for index, e in enumerate(entries):
             title = e.get("title") or ""
             text = e.get("text") or ""
-            lines.append(f"- [{title}]({e['news_url']}): {text}" if e.get("news_url") else f"- {title}: {text}")
+            entity = _summary_entry_entity(e)
+            link = e.get("item_url") or e.get("news_url")
+            lines.append(f"- [{title}]({link}): {text}" if link else f"- {title}: {text}")
             entry_id = (f"fc-es-entry-{e['entry_id']}" if e.get("entry_id") is not None
                         else f"fc-es-entry-{d.get('id') or month['id']}-{index}")
             polozky.append({
                 "id": entry_id,
-                "clanek_id": f"fc-news-{e['news_id']}" if e.get("news_id") is not None else None,
+                # only an entry that links a news article references clanky
+                "clanek_id": (f"fc-news-{e['news_id']}"
+                              if entity == "news" and e.get("news_id") is not None else None),
                 "nazev": e.get("title"),
                 "text": e.get("text"),
                 "poradi": index,
+                "url": link,
+                "typ": entity,
             })
         row = {
             "id": summary_id,
             "segment_id": self._segment_id(d.get("segment") or month.get("segment"), slug),
             "rok": int(month["year"]),
             "mesic": int(month["month"]),
-            "nazev": f"{month_name} {month['year']}",
+            "nazev": summary_title(month.get("month_name"), int(month["month"]), int(month["year"])),
             "telo": "\n".join(lines) or None,
             "pdf_url": None,
         }

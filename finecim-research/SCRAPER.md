@@ -96,10 +96,15 @@ it already has, then fetches the detail page only for items that are:
   the stored copy is known to be current. News and mystery cards show only the publish
   date, so a badged news article is always fetched again.
 
-Products have no date on the card, so a product that keeps showing the `updated` badge is
-fetched again on every run. When the refetch finds the same update date as stored, it
-does not count as new work: the page can still trigger the early stop, so a persistent
-badge does not make every run walk deeper into the list.
+**Badges are not new work.** Only a card that is not stored yet, or whose card date is
+newer than the stored one, counts as new work. A stored card that is refetched only
+because it shows the `updated` badge is fetched, but it does not count for the early stop
+or the page budget. FINeCIM keeps the badge on a card for a long time, so without this
+rule a badged page 1 would make every run walk deeper into the list and use up the pages
+meant for the backfill. Products have no date on the card, so a product that keeps
+showing the badge is fetched again on every run; only when that refetch finds a new
+update date does it count as new work. Refetches still count against the item budget
+(`--max-items`).
 
 Items are matched by id alone. An article listed in a domain other than the one in its
 own URL (`/cz/domena/<slug>/news/<id>`) is stored once, under the segment of its URL; in
@@ -124,8 +129,9 @@ entity and segment, `finecim_sync` holds:
 Every run has two budgets per entity and segment: the **page budget** (`--max-pages`,
 default 3) and the **item budget** (`--max-items`, default 120 detail fetches); `--full`
 lifts both unless they are given explicitly. Head-scan pages on which nothing had to be
-fetched (pages that are already known, and the page that ends the head scan) are free, as
-is the backfill's check of the page before its cursor; every other list page counts,
+fetched as new work (pages that are already known, pages with only badge refetches, and
+the page that ends the head scan) are free, as is the backfill's check of the page before
+its cursor; every other list page counts,
 including a backfill page on which everything was already known (new items on top push
 already processed pages under the page-number cursor, so a small page budget slows the
 backfill down a little; it never skips anything). A run
@@ -169,7 +175,35 @@ attempts are used up. New items only enter at the top,
 so nothing moves from "below" to "above" a position that was already processed.
 `finecim status` and `--dry-run` show a pending guard as "head unfinished (guard id N)".
 The randomized replay in `tests/test_finecim_resume_property.py` checks this property
-against a simulated list.
+against a simulated list, also with runs killed after a random number of details.
+
+**Per-page checkpoints.** The position is written to `finecim_sync` while a walk runs,
+not only when it ends, so killing the process, a reboot, Ctrl+C or a database error in
+the middle of a run loses nothing (the details stored so far are kept, and the next run
+does not stop early above the items that were not fetched yet):
+
+* before the new cards of a head-scan page are fetched, the guard is set to the smallest
+  new card on that page (an older, smaller pending guard is kept). On a segment that was
+  never walked, or when that page lies at or beyond the backfill cursor, the cursor is
+  set to the page instead, so the backfill reads it again;
+* after each finished head-scan page, the state is written as if the head scan had been
+  cut below that page;
+* in the backfill, the cursor is written before and after each page.
+
+A checkpoint also includes the head-scan details that failed so far, and it does not set
+`last_success_at`. The final state of a run is written in a `finally` block, so the
+position reached is recorded even when the run is aborted by an exception (the exception
+is still raised, and the run counts as failed).
+
+**Markup changes do not end a list.** A list page that cannot be read or parsed counts as
+an error and leaves the position as it was after the previous page: the list is not
+marked `complete`, the cursor does not move past the page and a pending guard is kept.
+This covers HTTP errors, a page whose `#kt_content` lacks the listing container (the
+parsers raise `ParseError("listing container missing")`, for example after a FINeCIM
+redesign), any other exception from the list parser, and a page whose cards carry no item
+id. Only a page whose listing container exists but holds no cards, or the page named by
+the pager as the last one (or a page beyond it), ends the list. Watch the `Errors` column
+of `finecim status`: a list that fails on every run needs a parser update.
 
 The end of the list is the page named by the pager's last-page link (or computed from the
 item total); when a page has neither, the walk continues until an empty page. An empty
@@ -196,7 +230,16 @@ Executive summaries: the per-segment month list is read and every month not stor
 fetched. The current and the previous calendar month are fetched again on every run,
 because FINeCIM fills them in during the month. `finecim sync --years 2025` (or
 `sync_summaries(years=...)`) refetches every stored month of the given years. The summary title is the month name and year from the
-list page (for example `červen 2026`).
+list page (for example `červen 2026`). Months before 2020 are labelled like
+`6/2014 Executive Summary` on the list; their title is built from the month number
+instead (`červen 2014`).
+
+Each summary entry (`executive_summary_polozky`) keeps the link of the item it describes
+in `url` and the link type in `typ`: `news`, `campaign`, `mystery-shopping`, `produkt`, or
+empty for an entry without a link. Only a news entry fills `clanek_id`
+(`fc-news-<id>`, which may point to an article that is not downloaded yet); entries that
+link a campaign, a mystery shopping or a product leave it empty. The summary text (`telo`)
+lists every entry as a Markdown line with its link.
 
 A page that fails (HTTP error, unexpected markup) is counted in the `Errors` column and
 the run continues with the next item; a failed login stops the run. `finecim status`

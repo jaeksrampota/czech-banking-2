@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from bs4 import BeautifulSoup
 from src.finecim.parsers import (
     CZECH_MONTHS,
     ParseError,
@@ -136,9 +137,15 @@ def test_wrong_detail_type_raises():
 
 
 def test_minimal_pages_give_empty_results():
-    html = '<html><body><div id="kt_content"><div class="row"></div></div></body></html>'
+    html = (
+        '<html><body><div id="kt_content"><div class="row" id="snippet--listingItems"></div>'
+        '<div class="row" id="snippet--listing"></div>'
+        '<div id="snippet--content"><div class="row"></div></div></div></body></html>'
+    )
     assert parse_news_list(html, f"{UCTY}/news") == []
     assert parse_campaign_list(html, f"{UCTY}/campaign") == []
+    assert parse_mystery_list(html, f"{UCTY}/mystery-shopping") == []
+    assert parse_product_list(html, f"{UCTY}/produkty") == []
     assert parse_subject_list(html, f"{UCTY}/subjekty") == []
     assert parse_product_parameters(html) == []
     assert parse_pagination(html) == {"total": None, "step": None, "page": 1, "last_page": 1}
@@ -276,6 +283,41 @@ def test_parse_subject_list():
     assert by_id[52]["name"] == "mBank"
     # the "Bankovní trh" tile has a heading instead of a logo
     assert by_id[56]["name"] == "Bankovní trh" and by_id[56]["logo_url"] is None
+
+
+_LIST_CASES = [
+    (parse_news_list, "list_news.html", f"{UCTY}/news?step=96", "#snippet--listingItems"),
+    (parse_campaign_list, "list_campaign.html", f"{UCTY}/campaign", "#snippet--listing"),
+    (parse_mystery_list, "list_mystery.html", f"{UCTY}/mystery-shopping", "#snippet--listingItems"),
+    (parse_product_list, "list_products.html", f"{UCTY}/produkty", "#snippet--listing"),
+    (parse_subject_list, "list_subjekty.html", f"{UCTY}/subjekty", "#snippet--content .row"),
+]
+_LIST_IDS = ["news", "campaign", "mystery", "product", "subject"]
+
+
+def _edit_container(name: str, selector: str, *, remove: bool) -> str:
+    soup = BeautifulSoup(load(name), "lxml")
+    container = soup.select_one(selector)
+    assert container is not None and soup.find(id="kt_content") is not None
+    if remove:
+        container.decompose()
+    else:
+        container.clear()
+    return str(soup)
+
+
+@pytest.mark.parametrize(("parser", "fixture", "url", "selector"), _LIST_CASES, ids=_LIST_IDS)
+def test_list_parsers_reject_a_page_without_the_listing_container(parser, fixture, url, selector):
+    assert parser(load(fixture), url)  # the unmodified fixture has cards
+    html = _edit_container(fixture, selector, remove=True)
+    with pytest.raises(ParseError, match="listing container missing"):
+        parser(html, url)
+
+
+@pytest.mark.parametrize(("parser", "fixture", "url", "selector"), _LIST_CASES, ids=_LIST_IDS)
+def test_list_parsers_return_empty_list_for_an_empty_container(parser, fixture, url, selector):
+    html = _edit_container(fixture, selector, remove=False)
+    assert parser(html, url) == []
 
 
 # --------------------------------------------------------------------------- detail pages
@@ -548,6 +590,57 @@ def test_parse_executive_summary_detail():
     assert entries[0]["text"].startswith("Aktualizovaná verze pravidelného reportu Digital Share of Reach")
     assert [e["entry_id"] for e in entries] == [45835, 45856, 45834, 45846]
     assert [e["news_id"] for e in entries] == [42857, 42712, 42862, 42717]
+    assert [e["entity"] for e in entries] == ["news"] * 4
+    assert entries[0]["item_url"] == f"{BASE}/cz/domena/bankovni-trh/news/42857"
+    assert all(e["item_url"] == e["news_url"] for e in entries)
+
+
+def _summary_entry(entry_id: int, href: str, title: str) -> str:
+    return (
+        '<div class="ecim-widget-summary"><h3 class="ecim-widget-summary__title">'
+        f'<a href="{href}">{title}</a></h3>'
+        f'<input class="es-entry-picker" type="checkbox" value="{entry_id}">'
+        f'<p class="es-annotation-text">Text {entry_id}</p></div>'
+    )
+
+
+def test_executive_summary_entries_link_to_campaigns_mystery_and_products():
+    extra = (
+        _summary_entry(1, "/cz/domena/ucty/campaign/4695", "Kampaň Air Bank")
+        + _summary_entry(2, f"{BASE}/cz/domena/sporeni/mystery-shopping/401", "Mystery spoření")
+        + _summary_entry(3, "/cz/domena/ucty/produkt/3936", "Smart Banking")
+        + _summary_entry(4, "/cz/domena/ucty/subjekt/120", "Trinity Bank")
+        + _summary_entry(5, "https://example.com/report", "Externí odkaz")
+    )
+    html = load("detail_executive_summary.html")
+    marker = '<div class="ecim-widget-summary'
+    position = html.index(marker)
+    html = html[:position] + extra + html[position:]
+    entries = parse_executive_summary_detail(html, f"{UCTY}/executive-summary/10664")["entries"]
+    by_id = {e["entry_id"]: e for e in entries}
+    assert len(entries) == 9
+
+    campaign = by_id[1]
+    assert campaign["entity"] == "campaign"
+    assert campaign["news_id"] is None
+    assert campaign["item_url"] == f"{UCTY}/campaign/4695"
+    assert campaign["news_url"] == campaign["item_url"]
+    assert campaign["title"] == "Kampaň Air Bank" and campaign["text"] == "Text 1"
+
+    mystery = by_id[2]
+    assert mystery["entity"] == "mystery-shopping" and mystery["news_id"] is None
+    assert mystery["item_url"] == f"{BASE}/cz/domena/sporeni/mystery-shopping/401"
+
+    product = by_id[3]
+    assert product["entity"] == "produkt" and product["news_id"] is None
+    assert product["item_url"] == f"{UCTY}/produkt/3936"
+
+    for unknown in (by_id[4], by_id[5]):
+        assert unknown["entity"] is None and unknown["news_id"] is None
+    assert by_id[5]["item_url"] == "https://example.com/report"
+
+    news = by_id[45835]
+    assert news["entity"] == "news" and news["news_id"] == 42857
 
 
 # --------------------------------------------------------------------------- hardening
@@ -874,6 +967,34 @@ def test_campaign_date_ignores_a_distractor_between_label_and_strong():
     item = parse_campaign_detail(html, f"{UCTY}/campaign/4695")
     assert item["created_date"] == "2026-11-01"
     assert item["updated_date"] == "2026-11-02"
+
+
+def test_labeled_date_ignores_a_strong_that_belongs_to_another_label():
+    html = load("detail_campaign.html").replace(
+        'Datum vytvoření: <strong class="kt-font-success">01.11.2026</strong>',
+        'Datum vytvoření: neuvedeno, Datum aktualizace: <strong class="kt-font-success">05.11.2026</strong>',
+        1,
+    )
+    assert "neuvedeno" in html
+    item = parse_campaign_detail(html, f"{UCTY}/campaign/4695")
+    assert item["created_date"] is None
+    assert item["updated_date"] == "2026-11-05"
+
+    # the label may also sit in a separate inline element before the value
+    html = load("detail_campaign.html").replace(
+        'Datum vytvoření: <strong class="kt-font-success">01.11.2026</strong>',
+        'Datum vytvoření: <span>Datum&nbsp;aktualizace:</span> <b>05.11.2026</b>',
+        1,
+    )
+    assert parse_campaign_detail(html, f"{UCTY}/campaign/4695")["created_date"] is None
+
+    # text-only fallback stops at the next label too
+    html = load("detail_campaign.html").replace(
+        'Datum vytvoření: <strong class="kt-font-success">01.11.2026</strong>',
+        "Datum vytvoření: -, Datum aktualizace: 05.11.2026",
+        1,
+    )
+    assert parse_campaign_detail(html, f"{UCTY}/campaign/4695")["created_date"] is None
 
 
 def test_labeled_date_without_strong_reads_the_text_after_the_label():

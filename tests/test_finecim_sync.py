@@ -50,7 +50,8 @@ def _fixture(name: str) -> str:
 #: A list page with no cards (what an empty domain or a page past the end returns).
 EMPTY_LISTING = (
     '<html><body><div id="kt_content"><div id="snippet--listingItems"></div>'
-    '<div id="snippet--listing"></div><p>Nebyly nalezeny žádné záznamy.</p></div></body></html>'
+    '<div id="snippet--listing"></div><div id="snippet--content"><div class="row"></div></div>'
+    '<p>Nebyly nalezeny žádné záznamy.</p></div></body></html>'
 )
 
 
@@ -451,8 +452,12 @@ def test_updated_badge_on_news_triggers_refetch(db):
     assert html != original
     client = FakeClient(overrides={"list_news.html": html})
     stats = _syncer(db, client).sync_news(["ucty"], max_pages=1)
-    assert client.count(r"/news/\d+") == 1
-    assert (stats.fetched, stats.updated, stats.inserted) == (1, 1, 0)
+    assert client.count(r"/news/43573$") == 1  # the badged card is refetched
+    assert client.count(r"/news/4356[68]$") == 0
+    # the badge refetch is not work: page 1 ends the head scan for free and the 1-page
+    # budget goes to the backfill (page 2, two new items)
+    assert (stats.fetched, stats.updated, stats.inserted) == (3, 1, 2)
+    assert client.count(r"/news\?step=96&page=2$") == 1
 
 
 def test_newer_card_date_triggers_refetch(db):
@@ -1247,3 +1252,292 @@ def test_cli_dry_run_opens_the_database_read_only(no_credentials, cli_config, mo
         assert conn.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
     finally:
         conn.close()
+
+
+# ── crash-safe checkpoints ───────────────────────────────────────
+
+
+class _CrashClient(FakeClient):
+    """FakeClient whose ``crash_at``-th news detail request raises ``exc`` (after calling
+    ``on_crash``, which may snapshot the database as a killed process would leave it)."""
+
+    def __init__(self, *a, crash_at: int, exc: BaseException, on_crash=None, **kw):
+        super().__init__(*a, **kw)
+        self.crash_at, self.exc, self.on_crash = crash_at, exc, on_crash
+        self.news_details = 0
+
+    def get(self, path_or_url: str, *, params: dict | None = None) -> str:
+        if re.search(r"/news/\d+$", urlsplit(path_or_url).path):
+            self.news_details += 1
+            if self.news_details == self.crash_at:
+                self.requests.append(path_or_url)
+                if self.on_crash is not None:
+                    self.on_crash()
+                raise self.exc
+        return super().get(path_or_url, params=params)
+
+
+def _disk_snapshot(db: Database, dest: Path) -> None:
+    """What is committed on disk right now (read through a separate connection)."""
+    import sqlite3
+
+    src = sqlite3.connect(db.db_path)
+    dst = sqlite3.connect(str(dest))
+    try:
+        src.backup(dst)
+    finally:
+        src.close()
+        dst.close()
+
+
+_ARCHIVE = list(range(1000, 970, -1))   # 30 items, 10 pages of 3
+_BURST = list(range(2008, 1999, -1))    # 9 new items = 3 pages: [2008..2006] [2005..2003] [2002..2000]
+
+
+@pytest.mark.parametrize("mode", ["kill", "interrupt", "caught"])
+def test_crash_on_the_fifth_detail_of_a_burst_loses_nothing(db, tmp_path, mode):
+    _run_news(db, _ARCHIVE, full=True)
+    assert _news_state(db) == (None, True)
+    ids = [*_BURST, *_ARCHIVE]
+    snapshot = tmp_path / "killed.sqlite"
+    exc = KeyboardInterrupt() if mode == "interrupt" else RuntimeError("boom")
+    client = _CrashClient(pages=_synthetic_news_lists(ids), crash_at=5, exc=exc,
+                          on_crash=(lambda: _disk_snapshot(db, snapshot)) if mode == "kill" else None)
+    if mode == "interrupt":
+        with pytest.raises(KeyboardInterrupt):
+            _syncer(db, client).sync_news(["ucty"])
+    else:
+        _syncer(db, client).sync_news(["ucty"])  # a RuntimeError in a detail is a failed detail
+    target = db
+    if mode == "kill":
+        # a killed process writes nothing more: continue from what was on disk at the crash
+        target = Database(str(snapshot))
+        assert _ids(target, "clanky", "fc-news-") >= {2008, 2007, 2006, 2005}
+        assert 2004 not in _ids(target, "clanky", "fc-news-")
+        st = resume_state(target.get_finecim_sync("news", "ucty"))
+        # written before page 2's details were fetched: its smallest new card
+        assert st.complete and st.guard == 2003
+    try:
+        for _ in range(4):
+            _run_news(target, ids)
+        assert set(ids) <= _ids(target, "clanky", "fc-news-")
+        st = resume_state(target.get_finecim_sync("news", "ucty"))
+        assert st.complete and st.guard is None
+        client, stats = _run_news(target, ids)
+        assert (_list_pages_read(client), stats.fetched) == ([1], 0)
+    finally:
+        if target is not db:
+            target.close()
+
+
+def test_kill_during_a_first_run_resumes_through_the_cursor(db, tmp_path):
+    archive = list(range(1000, 970, -1))
+    snapshot = tmp_path / "killed.sqlite"
+    client = _CrashClient(pages=_synthetic_news_lists(archive), crash_at=8, exc=RuntimeError("x"),
+                          on_crash=lambda: _disk_snapshot(db, snapshot))
+    _syncer(db, client).sync_news(["ucty"])
+    killed = Database(str(snapshot))
+    try:
+        st = resume_state(killed.get_finecim_sync("news", "ucty"))
+        assert st.cursor == 3 and not st.complete  # page 3 had started: the backfill re-reads it
+        for _ in range(6):
+            _run_news(killed, archive)
+        assert set(archive) <= _ids(killed, "clanky", "fc-news-")
+        assert _news_state(killed) == (None, True)
+    finally:
+        killed.close()
+
+
+@pytest.mark.parametrize("where", ["page-lookup", "detail-write"])
+def test_database_error_mid_walk_loses_nothing(db, monkeypatch, where):
+    import sqlite3
+
+    _run_news(db, _ARCHIVE, full=True)
+    ids = [*_BURST, *_ARCHIVE]
+    calls = {"n": 0}
+    method = "known_finecim_ids" if where == "page-lookup" else "upsert_clanek"
+    real = getattr(db, method)
+    fail_on = 2 if where == "page-lookup" else 5   # page 2's lookup / the 5th detail write
+
+    def flaky(*a, **kw):
+        calls["n"] += 1
+        if calls["n"] == fail_on:
+            raise sqlite3.OperationalError("database is locked")
+        return real(*a, **kw)
+
+    monkeypatch.setattr(db, method, flaky)
+    if where == "page-lookup":
+        with pytest.raises(sqlite3.OperationalError):
+            _run_news(db, ids)
+        st = resume_state(db.get_finecim_sync("news", "ucty"))
+        assert st.complete and st.guard == 2006  # page 1 was finished
+    else:
+        _, stats = _run_news(db, ids)  # inside a detail: a failed detail, the run goes on
+        assert stats.errors == 1
+    monkeypatch.setattr(db, method, real)
+    for _ in range(4):
+        _run_news(db, ids)
+    assert set(ids) <= _ids(db, "clanky", "fc-news-")
+    st = resume_state(db.get_finecim_sync("news", "ucty"))
+    assert st.complete and st.guard is None
+
+
+def test_checkpoints_are_written_per_page(db, monkeypatch):
+    writes = []
+    real = db.set_finecim_sync
+    monkeypatch.setattr(db, "set_finecim_sync",
+                        lambda entity, seg, **f: (writes.append(dict(f)), real(entity, seg, **f))[1])
+    _run_news(db, _ARCHIVE)  # first run: head pages 1..3 (budget 3), then cursor 4
+    assert len(writes) >= 3
+    # the first write precedes any detail fetch: the cursor at page 1
+    assert writes[0]["last_page"] == 1
+    assert writes[-1]["last_page"] == 4 and "last_success_at" in writes[-1]
+    assert all("last_success_at" not in w for w in writes[:-1])
+
+
+# ── markup-change safety ─────────────────────────────────────────
+
+_NO_CONTAINER = '<html><body><div id="kt_content"><div class="new-layout"><p>Zprávy</p></div></div></body></html>'
+
+
+def _resume_tuple(db: Database) -> tuple:
+    st = resume_state(db.get_finecim_sync("news", "ucty"))
+    return st.cursor, st.complete, st.guard, st.after, st.retry
+
+
+@pytest.mark.parametrize("page", [1, 4])
+def test_missing_listing_container_is_an_error_and_keeps_the_state(db, page):
+    _run_news(db, _ARCHIVE)  # pages 1..3, cursor 4
+    before = _resume_tuple(db)
+    assert before[0] == 4 and not before[1]
+    pages = _synthetic_news_lists(_ARCHIVE)
+    pages[("/ucty/news", page)] = _NO_CONTAINER
+    client = FakeClient(pages=pages)
+    stats = _syncer(db, client).sync_news(["ucty"])
+    assert stats.errors == 1
+    assert _resume_tuple(db) == before  # no completion, cursor and guard untouched
+    # the markup is back: the walk continues where it was
+    _, stats = _run_news(db, _ARCHIVE)
+    assert stats.errors == 0 and _news_state(db) == (7, False)
+
+
+def test_missing_listing_container_in_the_head_keeps_a_pending_guard(db):
+    _run_news(db, _ARCHIVE, full=True)
+    db.set_finecim_sync("news", "ucty", newest_id=_ARCHIVE[-1])  # a pending guard far below
+    pages = _synthetic_news_lists(_ARCHIVE)
+    pages[("/ucty/news", 2)] = _NO_CONTAINER
+    stats = _syncer(db, FakeClient(pages=pages)).sync_news(["ucty"])
+    assert stats.errors == 1
+    st = resume_state(db.get_finecim_sync("news", "ucty"))
+    assert st.complete and st.guard == _ARCHIVE[-1]
+
+
+@pytest.mark.parametrize("failure", ["raises", "cards-without-ids"])
+def test_list_parser_failure_is_an_error_and_keeps_the_state(db, monkeypatch, failure):
+    _run_news(db, _ARCHIVE)
+    before = _resume_tuple(db)
+    path, real_parser, entity_type = sync_mod._LIST_ENTITIES["news"]
+
+    def parser(html, url):
+        if "<!-- changed -->" not in html:
+            return real_parser(html, url)
+        if failure == "raises":
+            raise ValueError("unexpected markup")
+        return [{"id": None, "url": url, "title": "?"}]
+
+    monkeypatch.setitem(sync_mod._LIST_ENTITIES, "news", (path, parser, entity_type))
+    pages = _synthetic_news_lists(_ARCHIVE)
+    pages[("/ucty/news", 4)] = "<!-- changed -->" + pages[("/ucty/news", 4)]
+    stats = _syncer(db, FakeClient(pages=pages)).sync_news(["ucty"])
+    assert stats.errors == 1
+    assert _resume_tuple(db) == before
+
+
+def test_page_beyond_the_pagers_last_page_ends_the_list(db):
+    ids = list(range(1008, 999, -1))  # 3 pages
+    pages = _synthetic_news_lists(ids)
+    # the site answers page 3 with a footer whose total ends before it
+    # (its pager links end at page 2)
+    pages[("/ucty/news", 3)] = re.sub(r"page=\d+", "page=2", pages[("/ucty/news", 3)]).replace("z 4722", "z 6")
+    client = FakeClient(pages=pages)
+    stats = _syncer(db, client).sync_news(["ucty"], full=True)
+    assert stats.errors == 0
+    assert _list_pages_read(client) == [1, 2, 3]  # page 4 (empty) is never requested
+    assert _news_state(db) == (None, True)
+
+
+def test_existing_empty_container_ends_the_list(db):
+    client = FakeClient(pages={("/ucty/news", 1): EMPTY_LISTING})
+    stats = _syncer(db, client).sync_news(["ucty"])
+    assert (stats.errors, stats.fetched) == (0, 0)
+    assert _news_state(db) == (None, True)
+
+
+# ── executive summaries: titles and entry links ──────────────────
+
+
+def test_summary_title_from_the_month_number():
+    assert sync_mod.summary_title("červen", 6, 2026) == "červen 2026"
+    assert sync_mod.summary_title("6/2014 Executive Summary", 6, 2014) == "červen 2014"
+    assert sync_mod.summary_title("12/2019 Executive Summary", 12, 2019) == "prosinec 2019"
+    assert sync_mod.summary_title(None, 1, 2018) == "leden 2018"
+
+
+def _synthetic_summary(monkeypatch, label: str, year: int, month: int, entries: list[dict]) -> None:
+    from src.finecim import parsers
+
+    url = "https://www.finecim.cz/cz/domena/ucty/executive-summary/777"
+    monkeypatch.setattr(parsers, "parse_executive_summary_list", lambda html, u: [
+        {"id": 777, "url": url, "segment": "ucty", "year": year, "month": month, "month_name": label},
+    ])
+    monkeypatch.setattr(parsers, "parse_executive_summary_detail", lambda html, u: {
+        "id": 777, "url": url, "segment": "ucty", "month_name": None, "entries": entries,
+    })
+
+
+def test_pre_2020_summary_gets_a_czech_month_title(db, monkeypatch):
+    _synthetic_summary(monkeypatch, "6/2014 Executive Summary", 2014, 6, [])
+    stats = _syncer(db, FakeClient()).sync_summaries(["ucty"])
+    assert stats.errors == 0
+    row = db.conn.execute("SELECT nazev, rok, mesic FROM executive_summary WHERE id = 'fc-es-777'").fetchone()
+    assert (row["nazev"], row["rok"], row["mesic"]) == ("červen 2014", 2014, 6)
+
+
+def test_summary_entries_store_link_type_and_url(db, monkeypatch):
+    base = "https://www.finecim.cz/cz/domena/ucty"
+    entries = [
+        {"entry_id": 1, "title": "Zpráva", "text": "a", "entity": "news", "news_id": 42,
+         "news_url": f"{base}/news/42", "item_url": f"{base}/news/42"},
+        {"entry_id": 2, "title": "Kampaň", "text": "b", "entity": "campaign", "news_id": None,
+         "news_url": None, "item_url": f"{base}/campaign/4695"},
+        {"entry_id": 3, "title": "Produkt", "text": "c", "entity": "produkt", "news_id": None,
+         "news_url": None, "item_url": f"{base}/produkt/3936"},
+        {"entry_id": 4, "title": "Bez odkazu", "text": "d", "entity": None, "news_id": None,
+         "news_url": None, "item_url": None},
+        # an entry from a parser without the entity key: a news id still links the article
+        {"entry_id": 5, "title": "Starší", "text": "e", "news_id": 7, "news_url": f"{base}/news/7"},
+    ]
+    _synthetic_summary(monkeypatch, "červen", 2026, 6, entries)
+    captured = []
+    real = db.upsert_executive_summary
+    monkeypatch.setattr(db, "upsert_executive_summary",
+                        lambda row, polozky: (captured.append(polozky), real(row, polozky))[1])
+    _syncer(db, FakeClient()).sync_summaries(["ucty"])
+    polozky = {p["id"]: p for p in captured[0]}
+    expected = {
+        "fc-es-entry-1": ("fc-news-42", f"{base}/news/42", "news"),
+        "fc-es-entry-2": (None, f"{base}/campaign/4695", "campaign"),
+        "fc-es-entry-3": (None, f"{base}/produkt/3936", "produkt"),
+        "fc-es-entry-4": (None, None, None),
+        "fc-es-entry-5": ("fc-news-7", f"{base}/news/7", "news"),
+    }
+    assert {k: (p["clanek_id"], p["url"], p["typ"]) for k, p in polozky.items()} == expected
+    telo = db.conn.execute("SELECT telo FROM executive_summary WHERE id = 'fc-es-777'").fetchone()["telo"]
+    assert f"- [Kampaň]({base}/campaign/4695): b" in telo
+    assert "- Bez odkazu: d" in telo
+    columns = {r["name"] for r in db.conn.execute("PRAGMA table_info(executive_summary_polozky)")}
+    if {"url", "typ"} <= columns:  # stored once the schema has the columns
+        rows = db.conn.execute(
+            "SELECT id, clanek_id, url, typ FROM executive_summary_polozky WHERE summary_id = 'fc-es-777'"
+        ).fetchall()
+        assert {r["id"]: (r["clanek_id"], r["url"], r["typ"]) for r in rows} == expected
